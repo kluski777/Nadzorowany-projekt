@@ -1,0 +1,27 @@
+data:
+  batch_size: 64
+  num_workers: 0
+  image_size: 256
+  total_samples: 2048 # null to use full dataset (~100k images)
+  val_split: 0.1
+  test_split: 0.1
+  data_dir: "/kaggle/working/data"
+
+model:
+  input_channels: 3
+  latent_channels: 128
+  learning_rate: 0.001
+
+training:
+  max_epochs: 150
+  gradient_clip_val: 1.0
+  early_stopping_patience: 10
+  lr_scheduler_patience: 5
+  lr_scheduler_factor: 0.5
+
+experiment:
+  name: "autoencoder-training"
+  seed: 42
+  visualization_samples: 8
+  recon_log_every_n_epochs: 5
+

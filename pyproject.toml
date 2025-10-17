@@ -3,15 +3,21 @@ name = "nadzorowany-projekt"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
+    "torch>=2.9.0",
+    "torchvision>=0.23.0",
     "comet-ml>=3.53.0",
     "datasets>=4.1.1",
     "jupyterlab>=4.4.9",
     "matplotlib>=3.10.6",
-    "pandas>=2.3.3",
-    "scikit-learn>=1.7.2",
-    "torch>=2.8.0",
-    "torchvision>=0.23.0",
-    "umap-learn>=0.5.9.post2",
+    "pytorch-lightning>=2.4.0",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.0",
 ]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
