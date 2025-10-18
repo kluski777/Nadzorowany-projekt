@@ -125,6 +125,21 @@ def main():
     logger.experiment.log_image(
         "reconstruction_results.png", name="Final Reconstructions"
     )
+    
+    logger.experiment.log_model(
+        name=f"{config['experiment']['name']}-final-model",
+        file_or_folder=final_model_path,
+        metadata={
+            "model_type": "AutoEncoder",
+            "input_channels": config["model"]["input_channels"],
+            "latent_channels": config["model"]["latent_channels"],
+            "learning_rate": config["model"]["learning_rate"],
+            "final_epoch": trainer.current_epoch,
+            "best_val_loss": checkpoint_callback.best_model_score,
+        }
+    )
+    print(f"Model logged to Comet ML: {config['experiment']['name']}-final-model")
+    
     logger.experiment.end()
 
 
