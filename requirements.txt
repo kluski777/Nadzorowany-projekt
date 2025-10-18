@@ -412,10 +412,13 @@ types-python-dateutil==2.9.0.20250822
     # via arrow
 typing-extensions==4.15.0
     # via
+    #   aiosignal
+    #   anyio
     #   beautifulsoup4
     #   huggingface-hub
     #   lightning-utilities
     #   pytorch-lightning
+    #   referencing
     #   torch
 tzdata==2025.2
     # via pandas
