@@ -228,4 +228,5 @@ lightning_logs/
 *.pt
 
 # Data
-./data/
+data/
+!src/data/
