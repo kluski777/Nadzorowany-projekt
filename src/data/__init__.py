@@ -1,3 +1,3 @@
-from .module import WikiArtDataModule, WikiArtDataset
+from .module import WikiArtDataModule
 
-__all__ = ["WikiArtDataModule", "WikiArtDataset"]
+__all__ = ["WikiArtDataModule"]

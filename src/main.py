@@ -9,8 +9,7 @@ from dotenv import load_dotenv
 
 from models.autoencoder import AutoEncoder
 from data import WikiArtDataModule
-from utils.config import load_config
-from utils.visualize import visualize_results
+from utils import load_config, visualize_results
 from callbacks import ReconstructionLogger, EpochShuffleCallback
 
 load_dotenv()

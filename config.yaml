@@ -5,7 +5,7 @@ data:
   total_samples: 2048 # null to use full dataset (~100k images)
   val_split: 0.1
   test_split: 0.1
-  data_dir: "/kaggle/working/data"
+  data_dir: "./data"
   shuffle_buffer_size: 10000
   splits_cache_file: "dataset_splits.json"
 model:
