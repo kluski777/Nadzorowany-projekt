@@ -11,7 +11,7 @@ from models.autoencoder import AutoEncoder
 from data import WikiArtDataModule
 from utils.config import load_config
 from utils.visualize import visualize_results
-from callbacks.reconstruction_logger import ReconstructionLogger
+from callbacks import ReconstructionLogger, EpochShuffleCallback
 
 load_dotenv()
 
@@ -23,6 +23,12 @@ def main():
         type=str,
         default="config.yaml",
         help="Path to configuration YAML file (default: config.yaml)",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        help="Path to checkpoint file (.ckpt) to resume training from",
     )
     args = parser.parse_args()
 
@@ -40,6 +46,9 @@ def main():
         val_split=config["data"]["val_split"],
         test_split=config["data"]["test_split"],
         data_dir=config["data"]["data_dir"],
+        shuffle_buffer_size=config["data"]["shuffle_buffer_size"],
+        seed=seed,
+        splits_cache_file=config["data"]["splits_cache_file"],
     )
 
     model = AutoEncoder(
@@ -78,6 +87,8 @@ def main():
         num_samples=config["experiment"]["visualization_samples"],
     )
 
+    epoch_shuffle_callback = EpochShuffleCallback()
+
     logger.log_hyperparams(config)
     logger.experiment.log_parameter("config_file", args.config)
 
@@ -85,7 +96,7 @@ def main():
         max_epochs=config["training"]["max_epochs"],
         accelerator="auto",
         devices=1,
-        callbacks=[checkpoint_callback, early_stop_callback, recon_logger],
+        callbacks=[checkpoint_callback, early_stop_callback, recon_logger, epoch_shuffle_callback],
         logger=logger,
         log_every_n_steps=10,
         gradient_clip_val=config["training"]["gradient_clip_val"],
@@ -93,10 +104,18 @@ def main():
     )
 
     print("Starting training...")
-    trainer.fit(model, data_module)
+    if args.checkpoint:
+        print(f"Resuming training from checkpoint: {args.checkpoint}")
+        trainer.fit(model, data_module, ckpt_path=args.checkpoint)
+    else:
+        trainer.fit(model, data_module)
 
     print("\nTraining completed!")
     print(f"Best model path: {checkpoint_callback.best_model_path}")
+    
+    final_model_path = f"checkpoints/{config['experiment']['name']}-final.ckpt"
+    trainer.save_checkpoint(final_model_path)
+    print(f"Final model saved to: {final_model_path}")
 
     print("\nGenerating visualization...")
     visualize_results(
@@ -106,6 +125,7 @@ def main():
     logger.experiment.log_image(
         "reconstruction_results.png", name="Final Reconstructions"
     )
+    logger.experiment.end()
 
 
 if __name__ == "__main__":
