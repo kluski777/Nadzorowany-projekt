@@ -39,7 +39,7 @@ class WikiArtStreamingDataset(IterableDataset):
 
 class WikiArtDataModule(pl.LightningDataModule):
     """
-    PyTorch Lightning DataModule for WikiArt with deterministic val/test splits.
+    PyTorch Lightning DataModule for WikiArt.
     """
 
     def __init__(
