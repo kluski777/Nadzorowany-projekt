@@ -9,7 +9,6 @@ from torchvision import transforms
 
 
 class WikiArtStreamingDataset(IterableDataset):
-    """Streaming Dataset wrapper for WikiArt data"""
 
     def __init__(self, base_dataset, transform=None, shuffle_buffer_size=2048, base_seed=42, shuffle_per_epoch=True):
         self.base_dataset = base_dataset
@@ -38,9 +37,6 @@ class WikiArtStreamingDataset(IterableDataset):
 
 
 class WikiArtDataModule(pl.LightningDataModule):
-    """
-    PyTorch Lightning DataModule for WikiArt.
-    """
 
     def __init__(
         self,
@@ -110,14 +106,12 @@ class WikiArtDataModule(pl.LightningDataModule):
         with metadata_json.open('r') as f:
             metadata = json.load(f)
         
-        # Validate seed
         if metadata["seed"] != self.seed:
             raise ValueError(
                 f"Splits were generated with seed {metadata['seed']}, but current seed is {self.seed}. "
                 "Either regenerate splits with the correct seed or use the matching seed for training."
             )
         
-        # Load indices from CSV files
         train_indices = []
         with train_csv.open('r') as f:
             for line in f:
