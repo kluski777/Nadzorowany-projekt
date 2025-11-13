@@ -4,18 +4,19 @@ import json
 
 import pytorch_lightning as pl
 from datasets import load_dataset
-from torch.utils.data import DataLoader, IterableDataset, Dataset
+from torch.utils.data import DataLoader, IterableDataset
 from torchvision import transforms
 
 
 class WikiArtStreamingDataset(IterableDataset):
-    """Streaming Dataset wrapper for WikiArt training data with epoch-based shuffling."""
+    """Streaming Dataset wrapper for WikiArt data"""
 
-    def __init__(self, base_dataset, transform=None, shuffle_buffer_size=None, base_seed=42):
+    def __init__(self, base_dataset, transform=None, shuffle_buffer_size=2048, base_seed=42, shuffle_per_epoch=True):
         self.base_dataset = base_dataset
         self.transform = transform
         self.shuffle_buffer_size = shuffle_buffer_size
         self.base_seed = base_seed
+        self.shuffle_per_epoch = shuffle_per_epoch
         self.epoch = 0
 
     def set_epoch(self, epoch):
@@ -25,7 +26,7 @@ class WikiArtStreamingDataset(IterableDataset):
     def __iter__(self):
         dataset = self.base_dataset
         
-        if self.shuffle_buffer_size:
+        if self.shuffle_per_epoch:
             epoch_seed = self.base_seed + self.epoch
             dataset = dataset.shuffle(buffer_size=self.shuffle_buffer_size, seed=epoch_seed)
         
@@ -34,26 +35,6 @@ class WikiArtStreamingDataset(IterableDataset):
             if self.transform:
                 image = self.transform(image)
             yield {"image": image}
-
-
-class WikiArtStaticDataset(Dataset):
-    """Static Dataset for val/test - loads data into memory for deterministic splits."""
-
-    def __init__(self, data, transform=None):
-        self.data = data
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        item = self.data[idx]
-        image = item["image"]
-        
-        if self.transform:
-            image = self.transform(image)
-        
-        return {"image": image}
 
 
 class WikiArtDataModule(pl.LightningDataModule):
@@ -126,7 +107,6 @@ class WikiArtDataModule(pl.LightningDataModule):
                 "Please generate splits first using: python main.py generate_splits"
             )
         
-        # Load metadata
         with metadata_json.open('r') as f:
             metadata = json.load(f)
         
@@ -161,46 +141,51 @@ class WikiArtDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         """Setup datasets with pre-generated splits from CSV files."""
         
-        # Load splits from CSV files
-        metadata, train_indices, val_indices, test_indices = self._load_splits_from_csv()
+        metadata, _, _, _ = self._load_splits_from_csv()
         
         self.train_size = metadata["train_size"]
         self.val_size = metadata["val_size"]
         self.test_size = metadata["test_size"]
-        
-        # Load full dataset to access specific indices
-        full_dataset = load_dataset(
-            "Artificio/WikiArt_Full",
-            cache_dir=str(self.data_dir),
-            split="train",
-        )
-        
-        val_data = [full_dataset[int(i)] for i in val_indices]
-        test_data = [full_dataset[int(i)] for i in test_indices]
-        
-        self.val_dataset = WikiArtStaticDataset(val_data, transform=self.transform)
-        self.test_dataset = WikiArtStaticDataset(test_data, transform=self.transform)
-        
-        train_streaming = load_dataset(
+
+        base_streaming = load_dataset(
             "Artificio/WikiArt_Full",
             cache_dir=str(self.data_dir),
             split="train",
             streaming=True
-        ).take(self.train_size)
+        )
         
+        train_streaming = base_streaming.take(self.train_size)
         self.train_dataset = WikiArtStreamingDataset(
             train_streaming,
             transform=self.transform,
             shuffle_buffer_size=self.shuffle_buffer_size,
-            base_seed=self.seed
+            base_seed=self.seed,
+            shuffle_per_epoch=True
+        )
+        
+        val_streaming = base_streaming.skip(self.train_size).take(self.val_size)
+        self.val_dataset = WikiArtStreamingDataset(
+            val_streaming,
+            transform=self.transform,
+            shuffle_buffer_size=self.shuffle_buffer_size,
+            base_seed=self.seed,
+            shuffle_per_epoch=False
+        )
+        
+        test_streaming = base_streaming.skip(self.train_size + self.val_size).take(self.test_size)
+        self.test_dataset = WikiArtStreamingDataset(
+            test_streaming,
+            transform=self.transform,
+            shuffle_buffer_size=self.shuffle_buffer_size,
+            base_seed=self.seed,
+            shuffle_per_epoch=False
         )
         
         print(f"\n{'='*60}")
         print(f"Dataset Setup Complete:")
         print(f"  Training:   {self.train_size} samples (streaming)")
-        print(f"  Validation: {self.val_size} samples (static)")
-        print(f"  Test:       {self.test_size} samples (static)")
-        print(f"  Val/Test splits loaded from pre-generated CSV files")
+        print(f"  Validation: {self.val_size} samples (streaming)")
+        print(f"  Test:       {self.test_size} samples (streaming)")
         print(f"{'='*60}\n")
 
     def train_dataloader(self):
@@ -217,7 +202,7 @@ class WikiArtDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            shuffle=False,  # Deterministic order for validation
+            shuffle=False
         )
 
     def test_dataloader(self):
@@ -226,5 +211,5 @@ class WikiArtDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            shuffle=False,  # Deterministic order for testing
+            shuffle=False
         )
