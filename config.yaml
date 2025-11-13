@@ -1,13 +1,23 @@
+# Split generation configuration
+# Used when running: python main.py generate_splits
+splits:
+  seed: 42  # Seed for reproducible split generation
+  total_samples: 2048  # null to use full dataset (~100k images)
+  val_split: 0.1
+  test_split: 0.1
+  data_dir: "./data"
+  splits_dir: "splits"  # Directory name relative to data_dir where splits will be saved
+
+# Data loading configuration
+# Used during training
 data:
   batch_size: 64
   num_workers: 0
   image_size: 256
-  total_samples: 2048 # null to use full dataset (~100k images)
-  val_split: 0.1
-  test_split: 0.1
-  data_dir: "./data"
   shuffle_buffer_size: 10000
-  splits_cache_file: "dataset_splits.json"
+  data_dir: "./data"
+  splits_dir: "splits"  # Directory name relative to data_dir where splits are stored
+
 model:
   input_channels: 3
   latent_channels: 128
@@ -22,6 +32,6 @@ training:
 
 experiment:
   name: "autoencoder-77553-full"
-  seed: 42
+  seed: 42  # Seed for training reproducibility (can differ from splits.seed)
   visualization_samples: 8
   recon_log_every_n_epochs: 5

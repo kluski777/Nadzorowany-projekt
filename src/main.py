@@ -1,145 +1,88 @@
-import os
 import argparse
 
-import comet_ml  # noqa: F401 (import comet_ml before pytorch)
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from pytorch_lightning.loggers import CometLogger
-from dotenv import load_dotenv
+from utils import load_config
+from data.generate_splits import generate_splits
+from training import train_autoencoder
 
-from models.autoencoder import AutoEncoder
-from data import WikiArtDataModule
-from utils import load_config, visualize_results
-from callbacks import ReconstructionLogger, EpochShuffleCallback
 
-load_dotenv()
+def cmd_generate_splits(args):
+    """Generate train/val/test splits."""
+    print(f"Loading configuration from: {args.config}")
+    config = load_config(args.config)
+    
+    # Use seed from command line if provided, otherwise from config
+    seed = args.seed if args.seed is not None else config["splits"]["seed"]
+    
+    generate_splits(
+        seed=seed,
+        total_samples=config["splits"]["total_samples"],
+        val_split=config["splits"]["val_split"],
+        test_split=config["splits"]["test_split"],
+        data_dir=config["splits"]["data_dir"],
+        splits_dir=config["splits"]["splits_dir"],
+    )
+
+
+def cmd_train_autoencoder(args):
+    """Train AutoEncoder model."""
+    train_autoencoder(
+        config_path=args.config,
+        checkpoint_path=args.checkpoint,
+    )
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train AutoEncoder on WikiArt dataset")
-    parser.add_argument(
+    parser = argparse.ArgumentParser(
+        description="WikiArt AutoEncoder Training Pipeline",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    
+    # Generate splits command
+    parser_generate = subparsers.add_parser(
+        "generate_splits",
+        help="Generate train/val/test splits"
+    )
+    parser_generate.add_argument(
         "--config",
         type=str,
         default="config.yaml",
         help="Path to configuration YAML file (default: config.yaml)",
     )
-    parser.add_argument(
+    parser_generate.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for split generation (overrides config value)",
+    )
+    
+    # Train autoencoder command
+    parser_train = subparsers.add_parser(
+        "train_autoencoder",
+        help="Train AutoEncoder model"
+    )
+    parser_train.add_argument(
+        "--config",
+        type=str,
+        default="config.yaml",
+        help="Path to configuration YAML file (default: config.yaml)",
+    )
+    parser_train.add_argument(
         "--checkpoint",
         type=str,
         default=None,
         help="Path to checkpoint file (.ckpt) to resume training from",
     )
+    
     args = parser.parse_args()
-
-    print(f"Loading configuration from: {args.config}")
-    config = load_config(args.config)
-
-    seed = config["experiment"]["seed"]
-    pl.seed_everything(seed, workers=True)
-
-    data_module = WikiArtDataModule(
-        batch_size=config["data"]["batch_size"],
-        num_workers=config["data"]["num_workers"],
-        image_size=config["data"]["image_size"],
-        total_samples=config["data"]["total_samples"],
-        val_split=config["data"]["val_split"],
-        test_split=config["data"]["test_split"],
-        data_dir=config["data"]["data_dir"],
-        shuffle_buffer_size=config["data"]["shuffle_buffer_size"],
-        seed=seed,
-        splits_cache_file=config["data"]["splits_cache_file"],
-    )
-
-    model = AutoEncoder(
-        input_channels=config["model"]["input_channels"],
-        latent_channels=config["model"]["latent_channels"],
-        learning_rate=config["model"]["learning_rate"],
-        scheduler_patience=config["training"]["lr_scheduler_patience"],
-        scheduler_factor=config["training"]["lr_scheduler_factor"],
-    )
-    print(f"\nModel architecture:\n{model}\n")
-
-    checkpoint_callback = ModelCheckpoint(
-        dirpath="checkpoints",
-        filename="autoencoder-{epoch:02d}-{val_loss:.4f}",
-        monitor="val_loss",
-        mode="min",
-        save_top_k=3,
-        save_last=True,
-    )
-
-    early_stop_callback = EarlyStopping(
-        monitor="val_loss",
-        patience=config["training"]["early_stopping_patience"],
-        mode="min",
-    )
-
-    logger = CometLogger(
-        api_key=os.getenv("COMET_API_KEY"),
-        project=os.getenv("COMET_PROJECT_NAME"),
-        workspace=os.getenv("COMET_WORKSPACE"),
-        name=config["experiment"]["name"],
-    )
-
-    recon_logger = ReconstructionLogger(
-        log_every_n_epochs=config["experiment"]["recon_log_every_n_epochs"],
-        num_samples=config["experiment"]["visualization_samples"],
-    )
-
-    epoch_shuffle_callback = EpochShuffleCallback()
-
-    logger.log_hyperparams(config)
-    logger.experiment.log_parameter("config_file", args.config)
-
-    trainer = pl.Trainer(
-        max_epochs=config["training"]["max_epochs"],
-        accelerator="auto",
-        devices=1,
-        callbacks=[checkpoint_callback, early_stop_callback, recon_logger, epoch_shuffle_callback],
-        logger=logger,
-        log_every_n_steps=10,
-        gradient_clip_val=config["training"]["gradient_clip_val"],
-        deterministic=True,
-    )
-
-    print("Starting training...")
-    if args.checkpoint:
-        print(f"Resuming training from checkpoint: {args.checkpoint}")
-        trainer.fit(model, data_module, ckpt_path=args.checkpoint)
+    
+    if args.command == "generate_splits":
+        cmd_generate_splits(args)
+    elif args.command == "train_autoencoder":
+        cmd_train_autoencoder(args)
     else:
-        trainer.fit(model, data_module)
-
-    print("\nTraining completed!")
-    print(f"Best model path: {checkpoint_callback.best_model_path}")
-    
-    final_model_path = f"checkpoints/{config['experiment']['name']}-final.ckpt"
-    trainer.save_checkpoint(final_model_path)
-    print(f"Final model saved to: {final_model_path}")
-
-    print("\nGenerating visualization...")
-    visualize_results(
-        model, data_module, num_samples=config["experiment"]["visualization_samples"]
-    )
-
-    logger.experiment.log_image(
-        "reconstruction_results.png", name="Final Reconstructions"
-    )
-    
-    logger.experiment.log_model(
-        name=f"{config['experiment']['name']}-final-model",
-        file_or_folder=final_model_path,
-        metadata={
-            "model_type": "AutoEncoder",
-            "input_channels": config["model"]["input_channels"],
-            "latent_channels": config["model"]["latent_channels"],
-            "learning_rate": config["model"]["learning_rate"],
-            "final_epoch": trainer.current_epoch,
-            "best_val_loss": checkpoint_callback.best_model_score,
-        }
-    )
-    print(f"Model logged to Comet ML: {config['experiment']['name']}-final-model")
-    
-    logger.experiment.end()
+        parser.print_help()
 
 
 if __name__ == "__main__":

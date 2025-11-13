@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Optional
 import json
-import random
 
 import pytorch_lightning as pl
 from datasets import load_dataset
@@ -67,26 +66,20 @@ class WikiArtDataModule(pl.LightningDataModule):
         batch_size: int = 16,
         num_workers: int = 0,
         image_size: int = 256,
-        total_samples: Optional[int] = None,
-        val_split: float = 0.1,
-        test_split: float = 0.1,
         data_dir: str = "/kaggle/working/data",
         shuffle_buffer_size: int = 10000,
         seed: int = 42,
-        splits_cache_file: str = "dataset_splits.json",
+        splits_dir: str = "splits",
     ):
         super().__init__()
 
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.image_size = image_size
-        self.total_samples = total_samples
-        self.val_split = val_split
-        self.test_split = test_split
         self.data_dir = Path(data_dir)
         self.shuffle_buffer_size = shuffle_buffer_size
         self.seed = seed
-        self.splits_cache_file = self.data_dir / splits_cache_file
+        self.splits_dir = self.data_dir / splits_dir
 
         self.transform = transforms.Compose([
             transforms.Resize((image_size, image_size)),
@@ -113,93 +106,74 @@ class WikiArtDataModule(pl.LightningDataModule):
         else:
             print(f"Dataset already exists at {dataset_path}")
 
-    def _create_deterministic_splits(self):
-        """
-        Create deterministic val/test splits and cache them.
-        This ensures the same images are used across different model runs.
-        """
-        print("Creating deterministic val/test splits...")
+    def _load_splits_from_csv(self):
+        """Load pre-generated splits from CSV files."""
+        if not self.splits_dir.exists():
+            raise ValueError(
+                f"Splits directory does not exist: {self.splits_dir}\n"
+                "Please generate splits first using: python main.py generate_splits"
+            )
         
-        # Load full dataset (non-streaming) with fixed seed
+        train_csv = self.splits_dir / "train.csv"
+        val_csv = self.splits_dir / "val.csv"
+        test_csv = self.splits_dir / "test.csv"
+        metadata_json = self.splits_dir / "splits_metadata.json"
+        
+        if not all([train_csv.exists(), val_csv.exists(), test_csv.exists(), metadata_json.exists()]):
+            missing = [f for f in [train_csv, val_csv, test_csv, metadata_json] if not f.exists()]
+            raise ValueError(
+                f"Missing split files in {self.splits_dir}: {[f.name for f in missing]}\n"
+                "Please generate splits first using: python main.py generate_splits"
+            )
+        
+        # Load metadata
+        with metadata_json.open('r') as f:
+            metadata = json.load(f)
+        
+        # Validate seed
+        if metadata["seed"] != self.seed:
+            raise ValueError(
+                f"Splits were generated with seed {metadata['seed']}, but current seed is {self.seed}. "
+                "Either regenerate splits with the correct seed or use the matching seed for training."
+            )
+        
+        # Load indices from CSV files
+        train_indices = []
+        with train_csv.open('r') as f:
+            for line in f:
+                train_indices.append(int(line.strip()))
+        
+        val_indices = []
+        with val_csv.open('r') as f:
+            for line in f:
+                val_indices.append(int(line.strip()))
+        
+        test_indices = []
+        with test_csv.open('r') as f:
+            for line in f:
+                test_indices.append(int(line.strip()))
+        
+        print(f"Loaded splits from {self.splits_dir}")
+        print(f"Train: {metadata['train_size']}, Val: {metadata['val_size']}, Test: {metadata['test_size']}")
+        
+        return metadata, train_indices, val_indices, test_indices
+
+    def setup(self, stage: Optional[str] = None):
+        """Setup datasets with pre-generated splits from CSV files."""
+        
+        # Load splits from CSV files
+        metadata, train_indices, val_indices, test_indices = self._load_splits_from_csv()
+        
+        self.train_size = metadata["train_size"]
+        self.val_size = metadata["val_size"]
+        self.test_size = metadata["test_size"]
+        
+        # Load full dataset to access specific indices
         full_dataset = load_dataset(
             "Artificio/WikiArt_Full",
             cache_dir=str(self.data_dir),
             split="train",
         )
-        
-        if self.total_samples is None:
-            self.total_samples = len(full_dataset)
-        
-        # Use fixed random seed for splitting
-        random.seed(self.seed)
-        
-        # Create shuffled indices
-        indices = list(range(self.total_samples))
-        random.shuffle(indices)
-        
-        # Calculate split sizes
-        self.test_size = int(self.total_samples * self.test_split)
-        self.val_size = int(self.total_samples * self.val_split)
-        self.train_size = self.total_samples - self.val_size - self.test_size
-        
-        # Split indices
-        train_indices = indices[:self.train_size]
-        val_indices = indices[self.train_size:self.train_size + self.val_size]
-        test_indices = indices[self.train_size + self.val_size:]
-        
-        # Save splits to cache
-        splits_info = {
-            "seed": self.seed,
-            "total_samples": self.total_samples,
-            "train_size": self.train_size,
-            "val_size": self.val_size,
-            "test_size": self.test_size,
-            "val_indices": val_indices,
-            "test_indices": test_indices,
-        }
-        
-        with Path(self.splits_cache_file).open('w') as f:
-            json.dump(splits_info, f, indent=2)
-        
-        print(f"Splits cached to {self.splits_cache_file}")
-        print(f"Train: {self.train_size}, Val: {self.val_size}, Test: {self.test_size}")
-        
-        return full_dataset, train_indices, val_indices, test_indices
-
-    def _load_cached_splits(self):
-        """Load previously cached splits."""
-        with Path(self.splits_cache_file).open('r') as f:
-            splits_info = json.load(f)
-        
-        if splits_info["seed"] != self.seed:
-            raise ValueError(
-                f"Cached splits use seed {splits_info['seed']}, but current seed is {self.seed}. "
-                "Delete the cache file to regenerate splits."
-            )
-        
-        print(f"Loaded cached splits from {self.splits_cache_file}")
-        print(f"Train: {splits_info['train_size']}, Val: {splits_info['val_size']}, Test: {splits_info['test_size']}")
-        
-        return splits_info
-
-    def setup(self, stage: Optional[str] = None):
-        """Setup datasets with deterministic val/test splits."""
-        
-        if self.splits_cache_file.exists():
-            splits_info = self._load_cached_splits()
-            val_indices = splits_info["val_indices"]
-            test_indices = splits_info["test_indices"]
-            self.train_size = splits_info["train_size"]
-            self.val_size = splits_info["val_size"]
-            self.test_size = splits_info["test_size"]
-            
-            full_dataset = load_dataset(
-                "Artificio/WikiArt_Full",
-                cache_dir=str(self.data_dir),
-                split="train",
-            )
-        else:
-            full_dataset, _, val_indices, test_indices = self._create_deterministic_splits()
         
         val_data = [full_dataset[int(i)] for i in val_indices]
         test_data = [full_dataset[int(i)] for i in test_indices]
@@ -226,7 +200,7 @@ class WikiArtDataModule(pl.LightningDataModule):
         print(f"  Training:   {self.train_size} samples (streaming)")
         print(f"  Validation: {self.val_size} samples (static)")
         print(f"  Test:       {self.test_size} samples (static)")
-        print(f"  Val/Test splits are DETERMINISTIC and cached")
+        print(f"  Val/Test splits loaded from pre-generated CSV files")
         print(f"{'='*60}\n")
 
     def train_dataloader(self):
