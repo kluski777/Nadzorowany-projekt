@@ -1,6 +1,5 @@
 import os
 
-import comet_ml  # noqa: F401 (import comet_ml before pytorch)
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
@@ -28,6 +27,11 @@ def train_autoencoder(config_path: str, checkpoint_path: str = None):
     seed = config["experiment"]["seed"]
     pl.seed_everything(seed, workers=True)
 
+    cutting_config = config.get("cutting", {})
+    cutting_seed = cutting_config.get("seed")
+    if cutting_seed is None:
+        cutting_seed = seed
+
     data_module = WikiArtDataModule(
         batch_size=config["data"]["batch_size"],
         num_workers=config["data"]["num_workers"],
@@ -36,6 +40,11 @@ def train_autoencoder(config_path: str, checkpoint_path: str = None):
         shuffle_buffer_size=config["data"]["shuffle_buffer_size"],
         seed=seed,
         splits_dir=config["data"]["splits_dir"],
+        enable_cutting=cutting_config.get("enable", False),
+        cutting_mode_train=cutting_config.get("mode_train", "random"),
+        cutting_mode_val=cutting_config.get("mode_val", "reproducible"),
+        cutting_mode_test=cutting_config.get("mode_test", "reproducible"),
+        cutting_seed=cutting_seed,
     )
 
     model = AutoEncoder(

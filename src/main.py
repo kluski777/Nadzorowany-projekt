@@ -1,3 +1,4 @@
+import comet_ml  # noqa: F401 (import comet_ml before pytorch)
 import argparse
 
 from utils import load_config

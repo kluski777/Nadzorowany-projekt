@@ -7,16 +7,31 @@ from datasets import load_dataset
 from torch.utils.data import DataLoader, IterableDataset
 from torchvision import transforms
 
+from utils.cutting import apply_cut, apply_cut_reproducible
+
 
 class WikiArtStreamingDataset(IterableDataset):
 
-    def __init__(self, base_dataset, transform=None, shuffle_buffer_size=2048, base_seed=42, shuffle_per_epoch=True):
+    def __init__(
+        self,
+        base_dataset,
+        transform=None,
+        shuffle_buffer_size=2048,
+        base_seed=42,
+        shuffle_per_epoch=True,
+        enable_cutting=False,
+        cutting_mode="random",
+        cutting_seed=42,
+    ):
         self.base_dataset = base_dataset
         self.transform = transform
         self.shuffle_buffer_size = shuffle_buffer_size
         self.base_seed = base_seed
         self.shuffle_per_epoch = shuffle_per_epoch
         self.epoch = 0
+        self.enable_cutting = enable_cutting
+        self.cutting_mode = cutting_mode
+        self.cutting_seed = cutting_seed
 
     def set_epoch(self, epoch):
         """Set the current epoch for shuffling."""
@@ -29,11 +44,21 @@ class WikiArtStreamingDataset(IterableDataset):
             epoch_seed = self.base_seed + self.epoch
             dataset = dataset.shuffle(buffer_size=self.shuffle_buffer_size, seed=epoch_seed)
         
+        sample_index = 0
         for item in dataset:
             image = item["image"]
             if self.transform:
                 image = self.transform(image)
+            
+            if self.enable_cutting:
+                if self.cutting_mode == "reproducible":
+                    seed = self.cutting_seed + sample_index
+                    image = apply_cut_reproducible(image, seed)
+                else:
+                    image = apply_cut(image)
+            
             yield {"image": image}
+            sample_index += 1
 
 
 class WikiArtDataModule(pl.LightningDataModule):
@@ -47,6 +72,11 @@ class WikiArtDataModule(pl.LightningDataModule):
         shuffle_buffer_size: int = 10000,
         seed: int = 42,
         splits_dir: str = "splits",
+        enable_cutting: bool = False,
+        cutting_mode_train: str = "random",
+        cutting_mode_val: str = "reproducible",
+        cutting_mode_test: str = "reproducible",
+        cutting_seed: int = None,
     ):
         super().__init__()
 
@@ -57,6 +87,11 @@ class WikiArtDataModule(pl.LightningDataModule):
         self.shuffle_buffer_size = shuffle_buffer_size
         self.seed = seed
         self.splits_dir = self.data_dir / splits_dir
+        self.enable_cutting = enable_cutting
+        self.cutting_mode_train = cutting_mode_train
+        self.cutting_mode_val = cutting_mode_val
+        self.cutting_mode_test = cutting_mode_test
+        self.cutting_seed = cutting_seed if cutting_seed is not None else seed
 
         self.transform = transforms.Compose([
             transforms.Resize((image_size, image_size)),
@@ -154,7 +189,10 @@ class WikiArtDataModule(pl.LightningDataModule):
             transform=self.transform,
             shuffle_buffer_size=self.shuffle_buffer_size,
             base_seed=self.seed,
-            shuffle_per_epoch=True
+            shuffle_per_epoch=True,
+            enable_cutting=self.enable_cutting,
+            cutting_mode=self.cutting_mode_train,
+            cutting_seed=self.cutting_seed,
         )
         
         val_streaming = base_streaming.skip(self.train_size).take(self.val_size)
@@ -163,7 +201,10 @@ class WikiArtDataModule(pl.LightningDataModule):
             transform=self.transform,
             shuffle_buffer_size=self.shuffle_buffer_size,
             base_seed=self.seed,
-            shuffle_per_epoch=False
+            shuffle_per_epoch=False,
+            enable_cutting=self.enable_cutting,
+            cutting_mode=self.cutting_mode_val,
+            cutting_seed=self.cutting_seed,
         )
         
         test_streaming = base_streaming.skip(self.train_size + self.val_size).take(self.test_size)
@@ -172,7 +213,10 @@ class WikiArtDataModule(pl.LightningDataModule):
             transform=self.transform,
             shuffle_buffer_size=self.shuffle_buffer_size,
             base_seed=self.seed,
-            shuffle_per_epoch=False
+            shuffle_per_epoch=False,
+            enable_cutting=self.enable_cutting,
+            cutting_mode=self.cutting_mode_test,
+            cutting_seed=self.cutting_seed,
         )
         
         print(f"\n{'='*60}")

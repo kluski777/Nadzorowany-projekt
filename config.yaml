@@ -12,6 +12,13 @@ data:
   data_dir: "./data"
   splits_dir: "splits"  # Directory name relative to data_dir where splits are stored
 
+cutting:
+  enable: true
+  mode_train: "random"
+  mode_val: "reproducible"
+  mode_test: "reproducible"
+  seed: null  # null to use experiment.seed
+
 model:
   input_channels: 3
   latent_channels: 128
