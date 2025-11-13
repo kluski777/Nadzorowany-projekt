@@ -6,7 +6,7 @@ splits:
 
 data:
   batch_size: 64
-  num_workers: 0
+  num_workers: 3
   image_size: 256
   shuffle_buffer_size: 10000
   data_dir: "./data"
