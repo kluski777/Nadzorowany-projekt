@@ -230,3 +230,5 @@ lightning_logs/
 # Data
 data/
 !src/data/
+!data/splits/
+!data/splits/*
