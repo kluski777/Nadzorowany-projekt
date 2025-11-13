@@ -87,7 +87,7 @@ class AutoEncoder(pl.LightningModule):
 
         loss = nn.functional.mse_loss(reconstructed, images)
 
-        self.log("train_loss", loss, prog_bar=True)
+        self.log("train_loss", loss, prog_bar=True, sync_dist=True)
 
         return loss
 
@@ -97,7 +97,7 @@ class AutoEncoder(pl.LightningModule):
 
         loss = nn.functional.mse_loss(reconstructed, images)
 
-        self.log("val_loss", loss, prog_bar=True)
+        self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 
         return loss
 
