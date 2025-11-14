@@ -21,7 +21,7 @@ cutting:
 
 model:
   input_channels: 3
-  latent_channels: 16  # 16 * 8 * 8
+  latent_channels: 32  # 2048
   learning_rate: 0.001
   loss_type: "ms_ssim"  # Options: "ssim", "ms_ssim"
 
@@ -33,7 +33,7 @@ training:
   lr_scheduler_factor: 0.5
 
 experiment:
-  name: "autoencoder-77553-full-ms_ssim-gauss-1k"
+  name: "autoencoder-77553-full-ms_ssim-gauss-2k"
   seed: 42  # Seed for training reproducibility
   visualization_samples: 8
   recon_log_every_n_epochs: 5

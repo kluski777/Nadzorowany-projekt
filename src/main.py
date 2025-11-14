@@ -102,8 +102,11 @@ def cmd_generate_splits(args):
 
 
 def cmd_train_autoencoder(args):
+    print(f"Loading configuration from: {args.config}")
+    config = load_config(args.config)
+
     train_autoencoder(
-        config_path=args.config,
+        config=config,
         checkpoint_path=args.checkpoint,
     )
 

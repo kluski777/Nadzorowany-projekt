@@ -7,23 +7,20 @@ from dotenv import load_dotenv
 
 from models.autoencoder import AutoEncoder
 from data import WikiArtDataModule
-from utils import load_config, visualize_results
+from utils import visualize_results
 from callbacks import ReconstructionLogger, EpochShuffleCallback
 
 load_dotenv()
 
 
-def train_autoencoder(config_path: str, checkpoint_path: str = None):
+def train_autoencoder(config: dict, checkpoint_path: str = None):
     """
     Train AutoEncoder on WikiArt dataset.
 
     Args:
-        config_path: Path to configuration YAML file
+        config: Configuration dictionary
         checkpoint_path: Optional path to checkpoint file (.ckpt) to resume training from
     """
-    print(f"Loading configuration from: {config_path}")
-    config = load_config(config_path)
-
     seed = config["experiment"]["seed"]
     pl.seed_everything(seed, workers=True)
 
