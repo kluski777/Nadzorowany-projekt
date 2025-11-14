@@ -11,7 +11,6 @@ from utils.cutting import apply_cut, apply_cut_reproducible
 
 
 class WikiArtStreamingDataset(IterableDataset):
-
     def __init__(
         self,
         base_dataset,
@@ -39,30 +38,31 @@ class WikiArtStreamingDataset(IterableDataset):
 
     def __iter__(self):
         dataset = self.base_dataset
-        
+
         if self.shuffle_per_epoch:
             epoch_seed = self.base_seed + self.epoch
-            dataset = dataset.shuffle(buffer_size=self.shuffle_buffer_size, seed=epoch_seed)
-        
+            dataset = dataset.shuffle(
+                buffer_size=self.shuffle_buffer_size, seed=epoch_seed
+            )
+
         sample_index = 0
         for item in dataset:
             image = item["image"]
             if self.transform:
                 image = self.transform(image)
-            
+
             if self.enable_cutting:
                 if self.cutting_mode == "reproducible":
                     seed = self.cutting_seed + sample_index
                     image = apply_cut_reproducible(image, seed)
                 else:
                     image = apply_cut(image)
-            
+
             yield {"image": image}
             sample_index += 1
 
 
 class WikiArtDataModule(pl.LightningDataModule):
-
     def __init__(
         self,
         batch_size: int = 16,
@@ -93,10 +93,12 @@ class WikiArtDataModule(pl.LightningDataModule):
         self.cutting_mode_test = cutting_mode_test
         self.cutting_seed = cutting_seed if cutting_seed is not None else seed
 
-        self.transform = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.ToTensor(),
-        ])
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize((image_size, image_size)),
+                transforms.ToTensor(),
+            ]
+        )
 
         self.train_dataset = None
         self.val_dataset = None
@@ -105,7 +107,7 @@ class WikiArtDataModule(pl.LightningDataModule):
     def prepare_data(self):
         """Download dataset to local directory if not already downloaded."""
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        
+
         dataset_path = self.data_dir / "Artificio___WikiArt_Full"
         if not dataset_path.exists():
             print(f"Downloading WikiArt dataset to {self.data_dir}...")
@@ -125,53 +127,66 @@ class WikiArtDataModule(pl.LightningDataModule):
                 f"Splits directory does not exist: {self.splits_dir}\n"
                 "Please generate splits first using: python main.py generate_splits"
             )
-        
+
         train_csv = self.splits_dir / "train.csv"
         val_csv = self.splits_dir / "val.csv"
         test_csv = self.splits_dir / "test.csv"
         metadata_json = self.splits_dir / "splits_metadata.json"
-        
-        if not all([train_csv.exists(), val_csv.exists(), test_csv.exists(), metadata_json.exists()]):
-            missing = [f for f in [train_csv, val_csv, test_csv, metadata_json] if not f.exists()]
+
+        if not all(
+            [
+                train_csv.exists(),
+                val_csv.exists(),
+                test_csv.exists(),
+                metadata_json.exists(),
+            ]
+        ):
+            missing = [
+                f
+                for f in [train_csv, val_csv, test_csv, metadata_json]
+                if not f.exists()
+            ]
             raise ValueError(
                 f"Missing split files in {self.splits_dir}: {[f.name for f in missing]}\n"
                 "Please generate splits first using: python main.py generate_splits"
             )
-        
-        with metadata_json.open('r') as f:
+
+        with metadata_json.open("r") as f:
             metadata = json.load(f)
-        
+
         if metadata["seed"] != self.seed:
             raise ValueError(
                 f"Splits were generated with seed {metadata['seed']}, but current seed is {self.seed}. "
                 "Either regenerate splits with the correct seed or use the matching seed for training."
             )
-        
+
         train_indices = []
-        with train_csv.open('r') as f:
+        with train_csv.open("r") as f:
             for line in f:
                 train_indices.append(int(line.strip()))
-        
+
         val_indices = []
-        with val_csv.open('r') as f:
+        with val_csv.open("r") as f:
             for line in f:
                 val_indices.append(int(line.strip()))
-        
+
         test_indices = []
-        with test_csv.open('r') as f:
+        with test_csv.open("r") as f:
             for line in f:
                 test_indices.append(int(line.strip()))
-        
+
         print(f"Loaded splits from {self.splits_dir}")
-        print(f"Train: {metadata['train_size']}, Val: {metadata['val_size']}, Test: {metadata['test_size']}")
-        
+        print(
+            f"Train: {metadata['train_size']}, Val: {metadata['val_size']}, Test: {metadata['test_size']}"
+        )
+
         return metadata, train_indices, val_indices, test_indices
 
     def setup(self, stage: Optional[str] = None):
         """Setup datasets with pre-generated splits from CSV files."""
-        
+
         metadata, _, _, _ = self._load_splits_from_csv()
-        
+
         self.train_size = metadata["train_size"]
         self.val_size = metadata["val_size"]
         self.test_size = metadata["test_size"]
@@ -180,9 +195,9 @@ class WikiArtDataModule(pl.LightningDataModule):
             "Artificio/WikiArt_Full",
             cache_dir=str(self.data_dir),
             split="train",
-            streaming=True
+            streaming=True,
         )
-        
+
         train_streaming = base_streaming.take(self.train_size)
         self.train_dataset = WikiArtStreamingDataset(
             train_streaming,
@@ -194,7 +209,7 @@ class WikiArtDataModule(pl.LightningDataModule):
             cutting_mode=self.cutting_mode_train,
             cutting_seed=self.cutting_seed,
         )
-        
+
         val_streaming = base_streaming.skip(self.train_size).take(self.val_size)
         self.val_dataset = WikiArtStreamingDataset(
             val_streaming,
@@ -206,8 +221,10 @@ class WikiArtDataModule(pl.LightningDataModule):
             cutting_mode=self.cutting_mode_val,
             cutting_seed=self.cutting_seed,
         )
-        
-        test_streaming = base_streaming.skip(self.train_size + self.val_size).take(self.test_size)
+
+        test_streaming = base_streaming.skip(self.train_size + self.val_size).take(
+            self.test_size
+        )
         self.test_dataset = WikiArtStreamingDataset(
             test_streaming,
             transform=self.transform,
@@ -218,13 +235,13 @@ class WikiArtDataModule(pl.LightningDataModule):
             cutting_mode=self.cutting_mode_test,
             cutting_seed=self.cutting_seed,
         )
-        
-        print(f"\n{'='*60}")
+
+        print(f"\n{'=' * 60}")
         print(f"Dataset Setup Complete:")
         print(f"  Training:   {self.train_size} samples (streaming)")
         print(f"  Validation: {self.val_size} samples (streaming)")
         print(f"  Test:       {self.test_size} samples (streaming)")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
     def train_dataloader(self):
         return DataLoader(
@@ -240,7 +257,7 @@ class WikiArtDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            shuffle=False
+            shuffle=False,
         )
 
     def test_dataloader(self):
@@ -249,5 +266,5 @@ class WikiArtDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            shuffle=False
+            shuffle=False,
         )

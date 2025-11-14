@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 
+from .losses import ssim_loss, ms_ssim_loss
+
 
 class AutoEncoder(pl.LightningModule):
     def __init__(
@@ -11,34 +13,42 @@ class AutoEncoder(pl.LightningModule):
         learning_rate: float = 1e-3,
         scheduler_patience: int = 5,
         scheduler_factor: float = 0.5,
+        loss_type: str = "ssim",
     ):
         super().__init__()
         self.save_hyperparameters()
         self.learning_rate = learning_rate
         self.scheduler_patience = scheduler_patience
         self.scheduler_factor = scheduler_factor
+        self.loss_type = loss_type
+
+        # Select loss function based on loss_type
+        if loss_type == "ssim":
+            self.loss_fn = ssim_loss
+        elif loss_type == "ms_ssim":
+            self.loss_fn = ms_ssim_loss
+        else:
+            raise ValueError(
+                f"Unknown loss_type: {loss_type}. Must be 'ssim' or 'ms_ssim'"
+            )
 
         self.encoder = nn.Sequential(
             # (input_channels x 256 x 256) -> (64 x 128 x 128)
             nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3),
             nn.BatchNorm2d(64),
             nn.GELU(),
-
             # (64 x 128 x 128) -> (128 x 64 x 64)
             nn.Conv2d(64, 128, kernel_size=7, stride=2, padding=3),
             nn.BatchNorm2d(128),
             nn.GELU(),
-
             # (128 x 64 x 64) -> (256 x 32 x 32)
             nn.Conv2d(128, 256, kernel_size=5, stride=2, padding=2),
             nn.BatchNorm2d(256),
             nn.GELU(),
-
             # (256 x 32 x 32) -> (512 x 16 x 16)
             nn.Conv2d(256, 512, kernel_size=5, stride=2, padding=2),
             nn.BatchNorm2d(512),
             nn.GELU(),
-
             # (512 x 16 x 16) -> (latent_channels x 8 x 8)
             nn.Conv2d(512, latent_channels, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(latent_channels),
@@ -51,25 +61,21 @@ class AutoEncoder(pl.LightningModule):
             nn.PixelShuffle(2),
             nn.BatchNorm2d(512),
             nn.GELU(),
-
             # (512 x 16 x 16) -> (256 x 32 x 32)
             nn.Conv2d(512, 256 * 4, kernel_size=3, padding=1),
             nn.PixelShuffle(2),
             nn.BatchNorm2d(256),
             nn.GELU(),
-
             # (256 x 32 x 32) -> (128 x 64 x 64)
             nn.Conv2d(256, 128 * 4, kernel_size=3, padding=1),
             nn.PixelShuffle(2),
             nn.BatchNorm2d(128),
             nn.GELU(),
-
             # (128 x 64 x 64) -> (64 x 128 x 128)
             nn.Conv2d(128, 64 * 4, kernel_size=3, padding=1),
             nn.PixelShuffle(2),
             nn.BatchNorm2d(64),
             nn.GELU(),
-
             # (64 x 128 x 128) -> (3 x 256 x 256)
             nn.Conv2d(64, 3 * 4, kernel_size=3, padding=1),
             nn.PixelShuffle(2),
@@ -85,7 +91,7 @@ class AutoEncoder(pl.LightningModule):
         images = batch["image"]
         reconstructed = self(images)
 
-        loss = nn.functional.mse_loss(reconstructed, images)
+        loss = self.loss_fn(reconstructed, images)
 
         self.log("train_loss", loss, prog_bar=True, sync_dist=True)
 
@@ -95,7 +101,7 @@ class AutoEncoder(pl.LightningModule):
         images = batch["image"]
         reconstructed = self(images)
 
-        loss = nn.functional.mse_loss(reconstructed, images)
+        loss = self.loss_fn(reconstructed, images)
 
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 

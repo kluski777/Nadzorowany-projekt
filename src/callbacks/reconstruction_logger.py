@@ -27,7 +27,7 @@ class ReconstructionLogger(Callback):
 
     def on_validation_epoch_end(self, trainer, pl_module):
         """Log reconstructions every N epochs."""
-        
+
         if self.sample_batch is None:
             return
 

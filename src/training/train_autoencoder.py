@@ -16,7 +16,7 @@ load_dotenv()
 def train_autoencoder(config_path: str, checkpoint_path: str = None):
     """
     Train AutoEncoder on WikiArt dataset.
-    
+
     Args:
         config_path: Path to configuration YAML file
         checkpoint_path: Optional path to checkpoint file (.ckpt) to resume training from
@@ -53,6 +53,7 @@ def train_autoencoder(config_path: str, checkpoint_path: str = None):
         learning_rate=config["model"]["learning_rate"],
         scheduler_patience=config["training"]["lr_scheduler_patience"],
         scheduler_factor=config["training"]["lr_scheduler_factor"],
+        loss_type=config["model"].get("loss_type", "ssim"),
     )
     print(f"\nModel architecture:\n{model}\n")
 
@@ -92,7 +93,12 @@ def train_autoencoder(config_path: str, checkpoint_path: str = None):
         max_epochs=config["training"]["max_epochs"],
         accelerator="auto",
         devices=-1,
-        callbacks=[checkpoint_callback, early_stop_callback, recon_logger, epoch_shuffle_callback],
+        callbacks=[
+            checkpoint_callback,
+            early_stop_callback,
+            recon_logger,
+            epoch_shuffle_callback,
+        ],
         logger=logger,
         log_every_n_steps=10,
         gradient_clip_val=config["training"]["gradient_clip_val"],
@@ -108,7 +114,7 @@ def train_autoencoder(config_path: str, checkpoint_path: str = None):
 
     print("\nTraining completed!")
     print(f"Best model path: {checkpoint_callback.best_model_path}")
-    
+
     final_model_path = f"checkpoints/{config['experiment']['name']}-final.ckpt"
     trainer.save_checkpoint(final_model_path)
     print(f"Final model saved to: {final_model_path}")
@@ -121,7 +127,7 @@ def train_autoencoder(config_path: str, checkpoint_path: str = None):
     logger.experiment.log_image(
         "reconstruction_results.png", name="Final Reconstructions"
     )
-    
+
     logger.experiment.log_model(
         name=f"{config['experiment']['name']}-final-model",
         file_or_folder=final_model_path,
@@ -132,9 +138,8 @@ def train_autoencoder(config_path: str, checkpoint_path: str = None):
             "learning_rate": config["model"]["learning_rate"],
             "final_epoch": trainer.current_epoch,
             "best_val_loss": checkpoint_callback.best_model_score,
-        }
+        },
     )
     print(f"Model logged to Comet ML: {config['experiment']['name']}-final-model")
-    
-    logger.experiment.end()
 
+    logger.experiment.end()
