@@ -84,12 +84,12 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
     epoch_shuffle_callback = EpochShuffleCallback()
 
     logger.log_hyperparams(config)
-    logger.experiment.log_parameter("config_file", config_path)
 
     trainer = pl.Trainer(
         max_epochs=config["training"]["max_epochs"],
         accelerator="auto",
-        devices=-1,
+        devices="auto",
+        strategy="auto",
         callbacks=[
             checkpoint_callback,
             early_stop_callback,
