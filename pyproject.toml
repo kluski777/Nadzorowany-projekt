@@ -8,12 +8,13 @@ dependencies = [
     "torch>=2.9.0",
     "torchvision>=0.23.0",
     "comet-ml>=3.53.0",
-    "datasets>=4.1.1",
+    "datasets>=4.4.1",
     "jupyterlab>=4.4.9",
     "matplotlib>=3.10.6",
     "pytorch-lightning>=2.4.0",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.0",
+    "scikit-learn>=1.7.2",
 ]
 
 [tool.setuptools]
