@@ -1,0 +1,7 @@
+{
+  "seed": 42,
+  "total_samples": 103250,
+  "train_size": 82600,
+  "val_size": 10325,
+  "test_size": 10325
+}
