@@ -1,4 +1,5 @@
 import os
+import torch
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
@@ -23,6 +24,8 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
     """
     seed = config["experiment"]["seed"]
     pl.seed_everything(seed, workers=True)
+
+    torch.use_deterministic_algorithms(True, warn_only=True)
 
     cutting_config = config.get("cutting", {})
     cutting_seed = cutting_config.get("seed")
