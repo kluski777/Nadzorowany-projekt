@@ -1,6 +1,6 @@
 splits:
-  seed: 42  # seed for split generation
-  total_samples: 10000  # null to use full dataset (~100k images)
+  seed: 42 # seed for split generation
+  total_samples: 10000 # null to use full dataset (~100k images)
   val_split: 0.1
   test_split: 0.1
 
@@ -10,20 +10,20 @@ data:
   image_size: 256
   shuffle_buffer_size: 10000
   data_dir: "./data"
-  splits_dir: "splits"  # Directory name relative to data_dir where splits are stored
+  splits_dir: "splits" # Directory name relative to data_dir where splits are stored
 
 cutting:
   enable: true
   mode_train: "random"
   mode_val: "reproducible"
   mode_test: "reproducible"
-  seed: null  # null to use experiment.seed
+  seed: null # null to use experiment.seed
 
 model:
   input_channels: 3
-  latent_channels: 32  # 2048
+  latent_channels: 128 # 8192
   learning_rate: 0.001
-  loss_type: "ssim"  # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
+  loss_type: "ssim" # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
 
 training:
   max_epochs: 150
@@ -34,6 +34,6 @@ training:
 
 experiment:
   name: "autoencoder-77553-full-ms_ssim-gauss-2k"
-  seed: 42  # Seed for training reproducibility
+  seed: 42 # Seed for training reproducibility
   visualization_samples: 8
   recon_log_every_n_epochs: 5
