@@ -3,6 +3,8 @@ import torch.nn as nn
 import pytorch_lightning as pl
 
 from .losses import get_loss_function
+from .encoder import Encoder
+from .decoder import Decoder
 
 
 class AutoEncoder(pl.LightningModule):
@@ -22,53 +24,10 @@ class AutoEncoder(pl.LightningModule):
         self.scheduler_factor = scheduler_factor
         self.loss_type = loss_type
 
-        # Select loss function based on loss_type
         self.loss_fn = get_loss_function(loss_type)
 
-        self.encoder = nn.Sequential(
-            # (input_channels x 256 x 256) -> (64 x 128 x 128)
-            nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3),
-            nn.InstanceNorm2d(64),
-            nn.GELU(),
-            # (64 x 128 x 128) -> (128 x 64 x 64)
-            nn.Conv2d(64, 128, kernel_size=7, stride=2, padding=3),
-            nn.InstanceNorm2d(128),
-            nn.GELU(),
-            # (128 x 64 x 64) -> (256 x 32 x 32)
-            nn.Conv2d(128, 256, kernel_size=5, stride=2, padding=2),
-            nn.InstanceNorm2d(256),
-            nn.GELU(),
-            # (256 x 32 x 32) -> (512 x 16 x 16)
-            nn.Conv2d(256, 512, kernel_size=5, stride=2, padding=2),
-            nn.InstanceNorm2d(512),
-            nn.GELU(),
-            # (512 x 16 x 16) -> (latent_channels x 8 x 8)
-            nn.Conv2d(512, latent_channels, kernel_size=3, stride=2, padding=1),
-            nn.InstanceNorm2d(latent_channels),
-            nn.GELU(),
-        )
-
-        self.decoder = nn.Sequential(
-            # (latent_channels x 8 x 8) -> (512 x 16 x 16)
-            nn.ConvTranspose2d(latent_channels, 512, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(512),
-            nn.GELU(),
-            # (512 x 16 x 16) -> (256 x 32 x 32)
-            nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(256),
-            nn.GELU(),
-            # (256 x 32 x 32) -> (128 x 64 x 64)
-            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(128),
-            nn.GELU(),
-            # (128 x 64 x 64) -> (64 x 128 x 128)
-            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(64),
-            nn.GELU(),
-            # (64 x 128 x 128) -> (3 x 256 x 256)
-            nn.ConvTranspose2d(64, 3, kernel_size=4, stride=2, padding=1),
-            nn.Sigmoid(),
-        )
+        self.encoder = Encoder(input_channels=input_channels, latent_channels=latent_channels)
+        self.decoder = Decoder(latent_channels=latent_channels, output_channels=input_channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         latent_space = self.encoder(x)

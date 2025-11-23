@@ -99,6 +99,7 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
         logger=logger,
         log_every_n_steps=10,
         gradient_clip_val=config["training"]["gradient_clip_val"],
+        precision="16-mixed",
     )
 
     print("Starting training...")
