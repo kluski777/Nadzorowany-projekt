@@ -112,6 +112,6 @@ class AutoEncoder(pl.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": {
                 "scheduler": scheduler,
-                "monitor": "train_loss",
+                "monitor": "val_loss",
             },
         }

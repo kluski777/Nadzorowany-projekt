@@ -2,9 +2,6 @@ import comet_ml  # noqa: F401 (import comet_ml before pytorch)
 import argparse
 
 from utils import load_config
-from data.generate_splits import generate_splits
-from data.generate_latent_spaces import generate_latent_spaces
-from training import train_autoencoder
 
 
 def parse_args():
@@ -86,6 +83,8 @@ def parse_args():
 
 
 def cmd_generate_splits(args):
+    from data.generate_splits import generate_splits
+
     print(f"Loading configuration from: {args.config}")
     config = load_config(args.config)
 
@@ -102,6 +101,8 @@ def cmd_generate_splits(args):
 
 
 def cmd_train_autoencoder(args):
+    from training import train_autoencoder
+
     print(f"Loading configuration from: {args.config}")
     config = load_config(args.config)
 
@@ -112,6 +113,8 @@ def cmd_train_autoencoder(args):
 
 
 def cmd_generate_latent_spaces(args):
+    from data.generate_latent_spaces import generate_latent_spaces
+
     generate_latent_spaces(
         config_path=args.config,
         checkpoint_path=args.checkpoint,
