@@ -1,11 +1,11 @@
 splits:
   seed: 42  # seed for split generation
-  total_samples: null  # null to use full dataset (~100k images)
+  total_samples: 10000  # null to use full dataset (~100k images)
   val_split: 0.1
   test_split: 0.1
 
 data:
-  batch_size: 128
+  batch_size: 64
   num_workers: 3
   image_size: 256
   shuffle_buffer_size: 10000
