@@ -65,12 +65,8 @@ class AutoEncoder(pl.LightningModule):
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
             nn.InstanceNorm2d(64),
             nn.GELU(),
-            # (64 x 128 x 128) -> (32 x 256 x 256)
-            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
-            nn.InstanceNorm2d(32),
-            nn.GELU(),
-            # (32 x 256 x 256) -> (3 x 256 x 256) - refinement layer
-            nn.Conv2d(32, input_channels, kernel_size=3, stride=1, padding=1),
+            # (64 x 128 x 128) -> (3 x 256 x 256)
+            nn.ConvTranspose2d(64, 3, kernel_size=4, stride=2, padding=1),
             nn.Sigmoid(),
         )
 
