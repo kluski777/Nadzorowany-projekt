@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 
-from .losses import ssim_loss, ms_ssim_loss
+from .losses import get_loss_function
 
 
 class AutoEncoder(pl.LightningModule):
@@ -23,14 +23,7 @@ class AutoEncoder(pl.LightningModule):
         self.loss_type = loss_type
 
         # Select loss function based on loss_type
-        if loss_type == "ssim":
-            self.loss_fn = ssim_loss
-        elif loss_type == "ms_ssim":
-            self.loss_fn = ms_ssim_loss
-        else:
-            raise ValueError(
-                f"Unknown loss_type: {loss_type}. Must be 'ssim' or 'ms_ssim'"
-            )
+        self.loss_fn = get_loss_function(loss_type)
 
         self.encoder = nn.Sequential(
             # (input_channels x 256 x 256) -> (64 x 128 x 128)
