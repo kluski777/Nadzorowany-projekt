@@ -79,6 +79,16 @@ def parse_args():
         help="Batch size for processing (default: 1)",
     )
 
+    parser_umap = subparsers.add_parser(
+        "visualize_umap", help="Visualize UMAP embeddings of latent spaces"
+    )
+    parser_umap.add_argument(
+        "--input-dir",
+        type=str,
+        default="data/latent_spaces",
+        help="Input directory containing latent space files for UMAP visualization",
+    )
+
     return parser.parse_args(), parser
 
 
@@ -123,6 +133,12 @@ def cmd_generate_latent_spaces(args):
         batch_size=args.batch_size,
     )
 
+def cmd_visualize_umap(args):
+    from utils.visualize import visualize_umap
+
+    visualize_umap(
+        input_dir=args.input_dir,
+    )
 
 def run():
     args, parser = parse_args()
@@ -133,6 +149,8 @@ def run():
             cmd_train_autoencoder(args)
         case "generate_latent_spaces":
             cmd_generate_latent_spaces(args)
+        case "visualize_umap":
+            cmd_visualize_umap(args)
         case _:
             parser.print_help()
 
