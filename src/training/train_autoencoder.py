@@ -5,7 +5,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
 from dotenv import load_dotenv
 
-from models.autoencoder import AutoEncoder
+from models import get_autoencoder
 from data import WikiArtDataModule
 from utils import visualize_results
 from callbacks import ReconstructionLogger, EpochShuffleCallback
@@ -13,7 +13,7 @@ from callbacks import ReconstructionLogger, EpochShuffleCallback
 load_dotenv()
 
 
-def train_autoencoder(config: dict, checkpoint_path: str = None):
+def train_autoencoder(architecture: str, config: dict, checkpoint_path: str = None):
     """
     Train AutoEncoder on WikiArt dataset.
 
@@ -43,6 +43,8 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
         cutting_mode_test=cutting_config.get("mode_test", "reproducible"),
         cutting_seed=cutting_seed,
     )
+    
+    AutoEncoder = get_autoencoder(architecture)
 
     model = AutoEncoder(
         input_channels=config["model"]["input_channels"],

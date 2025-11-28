@@ -32,6 +32,12 @@ def parse_args():
         "train_autoencoder", help="Train AutoEncoder model"
     )
     parser_train.add_argument(
+        "--architecture",
+        type=str,
+        default=None,
+        help="Name of an autoencoder's architecture",
+    )
+    parser_train.add_argument(
         "--config",
         type=str,
         default="config.yaml",
@@ -117,6 +123,7 @@ def cmd_train_autoencoder(args):
     config = load_config(args.config)
 
     train_autoencoder(
+        architecture=args.architecture,
         config=config,
         checkpoint_path=args.checkpoint,
     )

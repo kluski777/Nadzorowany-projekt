@@ -33,7 +33,7 @@ training:
   lr_scheduler_factor: 0.5
 
 experiment:
-  name: "autoencoder-77553-full-ms_ssim-gauss-2k"
+  name: "autoencoder-10k-CT-Residual-mse-latent8k"
   seed: 42 # Seed for training reproducibility
   visualization_samples: 8
   recon_log_every_n_epochs: 5
