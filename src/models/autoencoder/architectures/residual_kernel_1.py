@@ -40,43 +40,43 @@ class Decoder(nn.Module):
         super().__init__()
         
         self.network = nn.Sequential(
-            # (latent_channels x 8 x 8) -> (512 x 16 x 16)
-            nn.Conv2d(latent_channels, 2048, kernel_size=1, stride=1, padding=0),
-            nn.BatchNorm2d(2048),
-            nn.GELU(),
-            ResidualBlock(2048),
-            nn.PixelShuffle(2),
-
-            # (512 x 16 x 16) -> (256 x 32 x 32)
-            nn.Conv2d(512, 1024, kernel_size=1, stride=1, padding=0),
-            nn.BatchNorm2d(1024),
-            nn.GELU(),
-            ResidualBlock(1024),
-            nn.PixelShuffle(2),
-            
-            # (256 x 32 x 32) -> (64 x 64 x 64)
-            nn.Conv2d(256, 512, kernel_size=1, stride=1, padding=0),
+            # (latent_channels x 8 x 8) -> (128 x 16 x 16)
+            nn.Conv2d(latent_channels, 512, kernel_size=1, stride=1, padding=0),
             nn.BatchNorm2d(512),
             nn.GELU(),
             ResidualBlock(512),
             nn.PixelShuffle(2),
-            
-            # (128 x 64 x 64) -> (64 x 128 x 128)
+
+            # (128 x 16 x 16) -> (64 x 32 x 32)
             nn.Conv2d(128, 256, kernel_size=1, stride=1, padding=0),
             nn.BatchNorm2d(256),
             nn.GELU(),
             ResidualBlock(256),
             nn.PixelShuffle(2),
             
-            # (64 x 128 x 128) -> (32 x 256 x 256)
+            # (64 x 32 x 32) -> (32 x 64 x 64)
             nn.Conv2d(64, 128, kernel_size=1, stride=1, padding=0),
             nn.BatchNorm2d(128),
             nn.GELU(),
             ResidualBlock(128),
             nn.PixelShuffle(2),
             
-            # (32 x 256 x 256) -> (output_channels x 256 x 256)
-            nn.Conv2d(32, output_channels, kernel_size=1, stride=1, padding=0),
+            # (32 x 64 x 64) -> (16 x 128 x 128)
+            nn.Conv2d(32, 64, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(64),
+            nn.GELU(),
+            ResidualBlock(64),
+            nn.PixelShuffle(2),
+            
+            # (16 x 128 x 128) -> (8 x 256 x 256)
+            nn.Conv2d(16, 32, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(32),
+            nn.GELU(),
+            ResidualBlock(32),
+            nn.PixelShuffle(2),
+            
+            # (8 x 256 x 256) -> (output_channels x 256 x 256)
+            nn.Conv2d(8, output_channels, kernel_size=1, stride=1, padding=0),
             nn.Sigmoid(),
         )
     
