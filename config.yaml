@@ -20,11 +20,11 @@ cutting:
   seed: null # null to use experiment.seed
 
 model:
-  archtecture: "res_convt"
+  architecture: "res_convt"
   input_channels: 3
   latent_channels: 128 # 8192
   learning_rate: 0.001
-  loss_type: "ssim" # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
+  loss_type: "mse" # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
 
 training:
   max_epochs: 150
