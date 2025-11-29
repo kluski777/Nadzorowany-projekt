@@ -95,6 +95,28 @@ def parse_args():
         help="Input directory containing latent space files for UMAP visualization",
     )
 
+    parser_fit_feature_extractor = subparsers.add_parser(
+        "fit_feature_extractor", help="Fit Feature Extractor on latent spaces"
+    )
+    parser_fit_feature_extractor.add_argument(
+        "--input-dir",
+        type=str,
+        default="data/latent_spaces",
+        help="Input directory containing latent space files for Feature Extractor fitting",
+    )
+    parser_fit_feature_extractor.add_argument(
+        "--output-dir",
+        type=str,
+        default="data/models",
+        help="Output directory for Feature Extractor fitting",
+    )
+    parser_fit_feature_extractor.add_argument(
+        "--n-components",
+        type=int,
+        default=50,
+        help="Number of principal components for Feature Extractor (default: 50)",
+    )
+
     return parser.parse_args(), parser
 
 
@@ -141,11 +163,28 @@ def cmd_generate_latent_spaces(args):
     )
 
 def cmd_visualize_umap(args):
-    from utils.visualize import visualize_umap
+    from utils import visualize_umap
+
+    print(f"Visualizing UMAP embeddings from latent spaces in: {args.input_dir}")
 
     visualize_umap(
         input_dir=args.input_dir,
     )
+
+    print("UMAP visualization completed")
+
+def cmd_fit_feature_extractor(args):
+    from training import fit_feature_extractor
+
+    print(f"Fitting Feature Extractor on latent spaces from: {args.input_dir}")
+
+    fit_feature_extractor(
+        input_dir=args.input_dir,
+        output_dir=args.output_dir,
+        n_components=args.n_components,
+    )
+
+    print("Feature Extractor fitting completed and saved")
 
 def run():
     args, parser = parse_args()
@@ -158,6 +197,8 @@ def run():
             cmd_generate_latent_spaces(args)
         case "visualize_umap":
             cmd_visualize_umap(args)
+        case "fit_feature_extractor":
+            cmd_fit_feature_extractor(args)
         case _:
             parser.print_help()
 

@@ -1,9 +1,9 @@
-import os
-from pathlib import Path
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import umap
+
+from .latent_space import load_latent_spaces
 
 
 def visualize_results(
@@ -51,25 +51,9 @@ def visualize_results(
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.show()
 
-
-def _load_latent_spaces(input_dir: str) -> np.ndarray:
-    """Load and flatten latent spaces from .npz files in the specified directory."""
-    latent_spaces = []
-
-    input_path = Path(input_dir)
-    for file_name in os.listdir(input_path):
-        if file_name.endswith(".npz"):
-            data = np.load(input_path / file_name)
-            latent_full = data["full"]
-            latent_spaces.append(latent_full.reshape(latent_full.shape[0], -1))
-
-    latent_spaces = np.vstack(latent_spaces)
-    return latent_spaces
-
-
 def visualize_umap(input_dir: str):
     """Visualize UMAP embeddings of latent spaces."""
-    latent_spaces = _load_latent_spaces(input_dir)
+    latent_spaces = load_latent_spaces(input_dir, splits=['train', 'val', 'test'])
 
     reducer = umap.UMAP(n_components=2)
     embedding = reducer.fit_transform(latent_spaces)

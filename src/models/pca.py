@@ -1,6 +1,7 @@
 import os
 import joblib
 from sklearn.decomposition import PCA
+from numpy import ndarray
 
 
 class FeatureExtractor:
@@ -10,7 +11,7 @@ class FeatureExtractor:
     This class provides methods to fit, transform, and save/load PCA models for dimensionality reduction.
     """
 
-    def __init__(self, n_components=None):
+    def __init__(self, n_components: int = None):
         """
         Initialize the FeatureExtractor with a PCA model.
 
@@ -19,7 +20,7 @@ class FeatureExtractor:
         """
         self.model = PCA(n_components=n_components)
 
-    def fit(self, latent_spaces):
+    def fit(self, latent_spaces: ndarray) -> None:
         """
         Fit the PCA model to the latent spaces.
 
@@ -28,7 +29,7 @@ class FeatureExtractor:
         """
         self.model.fit(latent_spaces)
 
-    def transform(self, latent_spaces):
+    def transform(self, latent_spaces: ndarray) -> ndarray:
         """
         Transform the latent spaces using the fitted PCA model.
 
@@ -40,7 +41,7 @@ class FeatureExtractor:
         """
         return self.model.transform(latent_spaces)
   
-    def fit_transform(self, latent_spaces):
+    def fit_transform(self, latent_spaces: ndarray) -> ndarray:
         """
         Fit the PCA model and transform the latent spaces in one step.
 
@@ -52,7 +53,7 @@ class FeatureExtractor:
         """
         return self.model.fit_transform(latent_spaces)
 
-    def save(self, output_dir='data/models', filename='feature-extractor'):
+    def save(self, output_dir: str = 'data/models', filename: str = 'feature-extractor') -> None:
         """
         Save the FeatureExtractor instance to a file using joblib.
 
@@ -67,7 +68,7 @@ class FeatureExtractor:
         joblib.dump(self, full_path, 3)
 
     @staticmethod
-    def load(input_dir='data/models', filename='feature-extractor'):
+    def load(input_dir: str = 'data/models', filename: str = 'feature-extractor') -> "FeatureExtractor":
         """
         Load a FeatureExtractor instance from a file.
 
