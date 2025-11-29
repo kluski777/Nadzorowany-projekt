@@ -83,6 +83,37 @@ def huber_loss(
     return F.huber_loss(predictions, targets)
 
 
+def bce_loss(
+    predictions: torch.Tensor,
+    targets: torch.Tensor,
+) -> torch.Tensor:
+    """Compute Binary Cross Entropy loss."""
+    return F.binary_cross_entropy(predictions, targets)
+
+
+def combined_mse_bce_loss(
+    predictions: torch.Tensor,
+    targets: torch.Tensor,
+    mse_weight: float = 1.0,
+    bce_weight: float = 1.0,
+) -> torch.Tensor:
+    """
+    Compute combined loss as weighted sum of MSE and BCE losses.
+    
+    Args:
+        predictions: Predicted values
+        targets: Target values
+        mse_weight: Multiplicative factor for MSE loss. Defaults to 1.0.
+        bce_weight: Multiplicative factor for BCE loss. Defaults to 1.0.
+    
+    Returns:
+        Combined loss: mse_weight * MSE + bce_weight * BCE
+    """
+    mse = F.mse_loss(predictions, targets)
+    bce = F.binary_cross_entropy(predictions, targets)
+    return mse_weight * mse + bce_weight * bce
+
+
 def get_loss_function(loss_type: str) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
     """
     Get loss function by name.
@@ -103,6 +134,8 @@ def get_loss_function(loss_type: str) -> Callable[[torch.Tensor, torch.Tensor], 
         "mse": mse_loss,
         "mae": mae_loss,
         "huber": huber_loss,
+        "bce": bce_loss,
+        "combined_mse_bce": combined_mse_bce_loss,
     }
 
     if loss_type not in loss_functions:
