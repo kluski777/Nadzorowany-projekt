@@ -13,7 +13,7 @@ from callbacks import ReconstructionLogger, EpochShuffleCallback
 load_dotenv()
 
 
-def train_autoencoder(architecture: str, config: dict, checkpoint_path: str = None):
+def train_autoencoder(config: dict, checkpoint_path: str = None):
     """
     Train AutoEncoder on WikiArt dataset.
 
@@ -44,6 +44,7 @@ def train_autoencoder(architecture: str, config: dict, checkpoint_path: str = No
         cutting_seed=cutting_seed,
     )
     
+    architecture = config["model"].get("architecture", "res_convt")
     AutoEncoder = get_autoencoder(architecture)
 
     model = AutoEncoder(
