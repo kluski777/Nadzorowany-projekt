@@ -1,5 +1,6 @@
-from models.pca import FeatureExtractor
-from utils.latent_space import load_latent_spaces
+from models import FeatureExtractor
+from utils import load_latent_spaces
+
 
 def fit_feature_extractor(input_dir: str, output_dir: str, n_components: int):
     latent_spaces = load_latent_spaces(input_dir, splits=['train'])

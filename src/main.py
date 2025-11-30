@@ -92,7 +92,7 @@ def parse_args():
         "--input-dir",
         type=str,
         default="data/latent_spaces",
-        help="Input directory containing latent space files for UMAP visualization",
+        help="Input directory containing latent space files for UMAP visualization (default: data/latent_spaces)",
     )
 
     parser_fit_feature_extractor = subparsers.add_parser(
@@ -102,19 +102,41 @@ def parse_args():
         "--input-dir",
         type=str,
         default="data/latent_spaces",
-        help="Input directory containing latent space files for Feature Extractor fitting",
+        help="Input directory containing latent space files for Feature Extractor fitting (default: data/latent_spaces)",
     )
     parser_fit_feature_extractor.add_argument(
         "--output-dir",
         type=str,
         default="data/models",
-        help="Output directory for Feature Extractor fitting",
+        help="Output directory for Feature Extractor fitting (default: data/models)",
     )
     parser_fit_feature_extractor.add_argument(
         "--n-components",
         type=int,
         default=50,
         help="Number of principal components for Feature Extractor (default: 50)",
+    )
+
+    parser_fit_clusterizer = subparsers.add_parser(
+        "fit_clusterizer", help="Fit Clusterizer on latent components"
+    )
+    parser_fit_clusterizer.add_argument(
+        "--input-dir",
+        type=str,
+        default="data/latent_components",
+        help="Input directory containing latent component files for Clusterizer fitting (default: data/latent_components)",
+    )
+    parser_fit_clusterizer.add_argument(
+        "--output-dir",
+        type=str,
+        default="data/models",
+        help="Output directory for Clusterizer fitting (default: data/models)",
+    )
+    parser_fit_clusterizer.add_argument(
+        "--n-clusters",
+        type=int,
+        default=20,
+        help="Number of clusters for Clusterizer fitting (default: 20)",
     )
 
     return parser.parse_args(), parser
@@ -186,6 +208,20 @@ def cmd_fit_feature_extractor(args):
 
     print("Feature Extractor fitting completed and saved")
 
+def cmd_fit_clusterizer(args):
+    from training import fit_clusterizer
+
+    print(f"Fitting Clusterizer on latent components from: {args.input_dir}")
+
+    fit_clusterizer(
+        input_dir=args.input_dir,
+        output_dir=args.output_dir,
+        n_clusters=args.n_clusters,
+    )
+
+    print("Clusterizer fitting completed and saved")
+
+
 def run():
     args, parser = parse_args()
     match args.command:
@@ -199,6 +235,8 @@ def run():
             cmd_visualize_umap(args)
         case "fit_feature_extractor":
             cmd_fit_feature_extractor(args)
+        case "fit_clusterizer":
+            cmd_fit_clusterizer(args)
         case _:
             parser.print_help()
 

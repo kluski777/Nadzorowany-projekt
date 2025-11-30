@@ -51,7 +51,7 @@ def visualize_results(
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.show()
 
-def visualize_umap(input_dir: str):
+def visualize_umap(input_dir: str, c: list[int] | None = None):
     """Visualize UMAP embeddings of latent spaces."""
     latent_spaces = load_latent_spaces(input_dir, splits=['train', 'val', 'test'])
 
@@ -62,6 +62,7 @@ def visualize_umap(input_dir: str):
     plt.scatter(
         embedding[:, 0],
         embedding[:, 1],
+        c=c,
         edgecolors="k",
     )
     plt.title("UMAP Visualization of Latent Spaces")
