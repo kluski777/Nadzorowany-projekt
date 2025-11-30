@@ -6,14 +6,14 @@ from .residual_block import ResidualBlock
 class UpsampleBlock(nn.Module):
     """
     Upsampling block for decoder architecture.
-    
+
     Consists of:
     - ConvTranspose2d layer for upsampling
     - BatchNorm2d for normalization
     - GELU activation
     - Optional ResidualBlock for feature refinement
     """
-    
+
     def __init__(
         self,
         in_channels: int,
@@ -24,19 +24,17 @@ class UpsampleBlock(nn.Module):
         use_residual: bool = True,
     ):
         super().__init__()
-        
+
         layers = [
-            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, 
-                              stride=stride, padding=padding),
+            nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding),
             nn.BatchNorm2d(out_channels),
             nn.GELU(),
         ]
-        
+
         if use_residual:
             layers.append(ResidualBlock(out_channels))
-        
+
         self.block = nn.Sequential(*layers)
-    
+
     def forward(self, x):
         return self.block(x)
-

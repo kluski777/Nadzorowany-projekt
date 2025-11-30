@@ -40,7 +40,7 @@ class FeatureExtractor:
             array-like: The transformed data in the reduced dimensional space.
         """
         return self.model.transform(latent_spaces)
-  
+
     def fit_transform(self, latent_spaces: ndarray) -> ndarray:
         """
         Fit the PCA model and transform the latent spaces in one step.
@@ -53,7 +53,7 @@ class FeatureExtractor:
         """
         return self.model.fit_transform(latent_spaces)
 
-    def save(self, output_dir: str = 'data/models', filename: str = 'feature-extractor') -> None:
+    def save(self, output_dir: str = "data/models", filename: str = "feature-extractor") -> None:
         """
         Save the FeatureExtractor instance to a file using joblib.
 
@@ -64,11 +64,11 @@ class FeatureExtractor:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        full_path = os.path.join(output_dir, f'{filename}.pkl')
+        full_path = os.path.join(output_dir, f"{filename}.pkl")
         joblib.dump(self, full_path, 3)
 
     @staticmethod
-    def load(input_dir: str = 'data/models', filename: str = 'feature-extractor') -> "FeatureExtractor":
+    def load(input_dir: str = "data/models", filename: str = "feature-extractor") -> "FeatureExtractor":
         """
         Load a FeatureExtractor instance from a file.
 
@@ -79,5 +79,5 @@ class FeatureExtractor:
         Returns:
             FeatureExtractor: The loaded FeatureExtractor instance.
         """
-        full_path = os.path.join(input_dir, f'{filename}.pkl')
+        full_path = os.path.join(input_dir, f"{filename}.pkl")
         return joblib.load(full_path)

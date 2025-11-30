@@ -104,16 +104,8 @@ def apply_cut_reproducible(image, seed):
         size_h, size_w = H // 4, W // 4
 
         # Use generator for random starting position
-        start_h = (
-            torch.randint(0, max(1, H - size_h), (1,), generator=generator).item()
-            if H > size_h
-            else 0
-        )
-        start_w = (
-            torch.randint(0, max(1, W - size_w), (1,), generator=generator).item()
-            if W > size_w
-            else 0
-        )
+        start_h = torch.randint(0, max(1, H - size_h), (1,), generator=generator).item() if H > size_h else 0
+        start_w = torch.randint(0, max(1, W - size_w), (1,), generator=generator).item() if W > size_w else 0
 
         image_to_ret = image.clone()
         image_to_ret[:, start_h : start_h + size_h, start_w : start_w + size_w] = 0.0

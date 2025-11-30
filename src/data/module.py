@@ -41,9 +41,7 @@ class WikiArtStreamingDataset(IterableDataset):
 
         if self.shuffle_per_epoch:
             epoch_seed = self.base_seed + self.epoch
-            dataset = dataset.shuffle(
-                buffer_size=self.shuffle_buffer_size, seed=epoch_seed
-            )
+            dataset = dataset.shuffle(buffer_size=self.shuffle_buffer_size, seed=epoch_seed)
 
         sample_index = 0
         for item in dataset:
@@ -141,11 +139,7 @@ class WikiArtDataModule(pl.LightningDataModule):
                 metadata_json.exists(),
             ]
         ):
-            missing = [
-                f
-                for f in [train_csv, val_csv, test_csv, metadata_json]
-                if not f.exists()
-            ]
+            missing = [f for f in [train_csv, val_csv, test_csv, metadata_json] if not f.exists()]
             raise ValueError(
                 f"Missing split files in {self.splits_dir}: {[f.name for f in missing]}\n"
                 "Please generate splits first using: python main.py generate_splits"
@@ -176,9 +170,7 @@ class WikiArtDataModule(pl.LightningDataModule):
                 test_indices.append(int(line.strip()))
 
         print(f"Loaded splits from {self.splits_dir}")
-        print(
-            f"Train: {metadata['train_size']}, Val: {metadata['val_size']}, Test: {metadata['test_size']}"
-        )
+        print(f"Train: {metadata['train_size']}, Val: {metadata['val_size']}, Test: {metadata['test_size']}")
 
         return metadata, train_indices, val_indices, test_indices
 
@@ -222,9 +214,7 @@ class WikiArtDataModule(pl.LightningDataModule):
             cutting_seed=self.cutting_seed,
         )
 
-        test_streaming = base_streaming.skip(self.train_size + self.val_size).take(
-            self.test_size
-        )
+        test_streaming = base_streaming.skip(self.train_size + self.val_size).take(self.test_size)
         self.test_dataset = WikiArtStreamingDataset(
             test_streaming,
             transform=self.transform,

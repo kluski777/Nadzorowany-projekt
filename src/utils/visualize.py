@@ -51,9 +51,10 @@ def visualize_results(
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.show()
 
+
 def visualize_umap(input_dir: str, c: list[int] | None = None):
     """Visualize UMAP embeddings of latent spaces."""
-    latent_spaces = load_latent_spaces(input_dir, splits=['train', 'val', 'test'])
+    latent_spaces = load_latent_spaces(input_dir, splits=["train", "val", "test"])
 
     reducer = umap.UMAP(n_components=2)
     embedding = reducer.fit_transform(latent_spaces)

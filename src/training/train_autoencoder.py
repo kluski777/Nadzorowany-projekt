@@ -43,7 +43,7 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
         cutting_mode_test=cutting_config.get("mode_test", "reproducible"),
         cutting_seed=cutting_seed,
     )
-    
+
     architecture = config["model"].get("architecture", "res_convt")
     AutoEncoder = get_autoencoder(architecture)
 
@@ -120,13 +120,9 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
     print(f"Final model saved to: {final_model_path}")
 
     print("\nGenerating visualization...")
-    visualize_results(
-        model, data_module, num_samples=config["experiment"]["visualization_samples"]
-    )
+    visualize_results(model, data_module, num_samples=config["experiment"]["visualization_samples"])
 
-    logger.experiment.log_image(
-        "reconstruction_results.png", name="Final Reconstructions"
-    )
+    logger.experiment.log_image("reconstruction_results.png", name="Final Reconstructions")
 
     logger.experiment.log_model(
         name=f"{config['experiment']['name']}-final-model",

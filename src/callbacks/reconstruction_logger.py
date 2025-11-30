@@ -21,9 +21,7 @@ class ReconstructionLogger(Callback):
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         """Capture first validation batch for logging."""
         if batch_idx == 0 and self.sample_batch is None:
-            self.sample_batch = {
-                "image": batch["image"][: self.num_samples].detach().cpu()
-            }
+            self.sample_batch = {"image": batch["image"][: self.num_samples].detach().cpu()}
 
     def on_validation_epoch_end(self, trainer, pl_module):
         """Log reconstructions every N epochs."""

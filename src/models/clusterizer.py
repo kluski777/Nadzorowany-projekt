@@ -20,12 +20,7 @@ class Clusterizer:
             tol (float): Relative tolerance with regards to Frobenius norm of the difference in the cluster centers of two consecutive iterations to declare convergence. Defaults to 1e-4.
             verbose (int): Verbosity mode. Defaults to 0.
         """
-        self.model = KMeans(
-            n_clusters=n_clusters,
-            max_iter=max_iter,
-            tol=tol,
-            verbose=verbose
-        )
+        self.model = KMeans(n_clusters=n_clusters, max_iter=max_iter, tol=tol, verbose=verbose)
 
     def fit(self, latent_components):
         """
@@ -60,7 +55,7 @@ class Clusterizer:
         """
         return self.model.fit_predict(latent_components)
 
-    def save(self, output_dir='data/models', filename='clusterizer'):
+    def save(self, output_dir="data/models", filename="clusterizer"):
         """
         Save the Clusterizer instance to a file using joblib.
 
@@ -71,11 +66,11 @@ class Clusterizer:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        full_path = os.path.join(output_dir, f'{filename}.pkl')
+        full_path = os.path.join(output_dir, f"{filename}.pkl")
         joblib.dump(self, full_path, 3)
 
     @staticmethod
-    def load(input_dir='data/models', filename='clusterizer'):
+    def load(input_dir="data/models", filename="clusterizer"):
         """
         Load a Clusterizer instance from a file.
 
@@ -86,5 +81,5 @@ class Clusterizer:
         Returns:
             Clusterizer: The loaded Clusterizer instance.
         """
-        full_path = os.path.join(input_dir, f'{filename}.pkl')
+        full_path = os.path.join(input_dir, f"{filename}.pkl")
         return joblib.load(full_path)

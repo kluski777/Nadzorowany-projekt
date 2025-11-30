@@ -45,9 +45,7 @@ def generate_splits(
     if total_samples is None:
         total_samples = len(full_dataset)
 
-    print(
-        f"Using {total_samples} samples from dataset (total available: {len(full_dataset)})"
-    )
+    print(f"Using {total_samples} samples from dataset (total available: {len(full_dataset)})")
 
     # Use fixed random seed for splitting
     random.seed(seed)

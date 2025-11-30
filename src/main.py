@@ -12,9 +12,7 @@ def parse_args():
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    parser_generate = subparsers.add_parser(
-        "generate_splits", help="Generate train/val/test splits"
-    )
+    parser_generate = subparsers.add_parser("generate_splits", help="Generate train/val/test splits")
     parser_generate.add_argument(
         "--config",
         type=str,
@@ -28,9 +26,7 @@ def parse_args():
         help="Random seed for split generation (overrides config value)",
     )
 
-    parser_train = subparsers.add_parser(
-        "train_autoencoder", help="Train AutoEncoder model"
-    )
+    parser_train = subparsers.add_parser("train_autoencoder", help="Train AutoEncoder model")
     parser_train.add_argument(
         "--architecture",
         type=str,
@@ -85,9 +81,7 @@ def parse_args():
         help="Batch size for processing (default: 1)",
     )
 
-    parser_umap = subparsers.add_parser(
-        "visualize_umap", help="Visualize UMAP embeddings of latent spaces"
-    )
+    parser_umap = subparsers.add_parser("visualize_umap", help="Visualize UMAP embeddings of latent spaces")
     parser_umap.add_argument(
         "--input-dir",
         type=str,
@@ -117,9 +111,7 @@ def parse_args():
         help="Number of principal components for Feature Extractor (default: 50)",
     )
 
-    parser_fit_clusterizer = subparsers.add_parser(
-        "fit_clusterizer", help="Fit Clusterizer on latent components"
-    )
+    parser_fit_clusterizer = subparsers.add_parser("fit_clusterizer", help="Fit Clusterizer on latent components")
     parser_fit_clusterizer.add_argument(
         "--input-dir",
         type=str,
@@ -184,6 +176,7 @@ def cmd_generate_latent_spaces(args):
         batch_size=args.batch_size,
     )
 
+
 def cmd_visualize_umap(args):
     from utils import visualize_umap
 
@@ -194,6 +187,7 @@ def cmd_visualize_umap(args):
     )
 
     print("UMAP visualization completed")
+
 
 def cmd_fit_feature_extractor(args):
     from training import fit_feature_extractor
@@ -207,6 +201,7 @@ def cmd_fit_feature_extractor(args):
     )
 
     print("Feature Extractor fitting completed and saved")
+
 
 def cmd_fit_clusterizer(args):
     from training import fit_clusterizer

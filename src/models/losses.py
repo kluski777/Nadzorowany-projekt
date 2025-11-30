@@ -99,13 +99,13 @@ def combined_mse_bce_loss(
 ) -> torch.Tensor:
     """
     Compute combined loss as weighted sum of MSE and BCE losses.
-    
+
     Args:
         predictions: Predicted values
         targets: Target values
         mse_weight: Multiplicative factor for MSE loss. Defaults to 1.0.
         bce_weight: Multiplicative factor for BCE loss. Defaults to 1.0.
-    
+
     Returns:
         Combined loss: mse_weight * MSE + bce_weight * BCE
     """
@@ -140,8 +140,6 @@ def get_loss_function(loss_type: str) -> Callable[[torch.Tensor, torch.Tensor], 
 
     if loss_type not in loss_functions:
         valid_types = ", ".join(f"'{k}'" for k in loss_functions.keys())
-        raise ValueError(
-            f"Unknown loss_type: '{loss_type}'. Must be one of: {valid_types}"
-        )
+        raise ValueError(f"Unknown loss_type: '{loss_type}'. Must be one of: {valid_types}")
 
     return loss_functions[loss_type]

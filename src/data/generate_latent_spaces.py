@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 from datasets import Dataset, load_dataset
 from tqdm import tqdm
 
-from models.autoencoder import AutoEncoder
+from models import get_autoencoder
 from data.module import WikiArtDataModule
 from utils import load_config
 from utils.cutting import apply_cut_reproducible
@@ -24,9 +24,7 @@ def _get_cutting_seed(config: dict, cutting_seed: Optional[int] = None) -> int:
     return seed
 
 
-def _setup_data_module(
-    config: dict, seed: int, cutting_seed: int, batch_size: int
-) -> WikiArtDataModule:
+def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: int) -> WikiArtDataModule:
     """Create and prepare data module."""
     data_module = WikiArtDataModule(
         batch_size=batch_size,
@@ -43,18 +41,9 @@ def _setup_data_module(
     return data_module
 
 
-def _load_model(
-    checkpoint_path: str, config: dict, device: torch.device
-) -> AutoEncoder:
+def _load_model(checkpoint_path: str, config: dict, device: torch.device) -> pl.LightningModule:
     """Load model from checkpoint and move to device."""
-    model = AutoEncoder.load_from_checkpoint(
-        checkpoint_path,
-        input_channels=config["model"]["input_channels"],
-        latent_channels=config["model"]["latent_channels"],
-        learning_rate=config["model"]["learning_rate"],
-        scheduler_patience=config["training"]["lr_scheduler_patience"],
-        scheduler_factor=config["training"]["lr_scheduler_factor"],
-    )
+    model = get_autoencoder(config["model"]["architecture"]).load_from_checkpoint(checkpoint_path)
     model.eval()
     model = model.to(device)
     return model
@@ -64,7 +53,7 @@ def _process_single_image(
     image_idx: int,
     full_dataset: Dataset,
     data_module: WikiArtDataModule,
-    model: AutoEncoder,
+    model: pl.LightningModule,
     device: torch.device,
     cutting_seed: int,
 ) -> Tuple[int, np.ndarray, np.ndarray]:
@@ -87,9 +76,7 @@ def _process_single_image(
     latent_full = latent_full.squeeze(0).cpu().numpy()
 
     # Apply cut and encode cut image
-    image_cut = apply_cut_reproducible(
-        image_tensor.squeeze(0).cpu(), cutting_seed + image_idx
-    )
+    image_cut = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + image_idx)
     image_cut = image_cut.unsqueeze(0).to(device)
     latent_cut = model.encoder(image_cut)
     latent_cut = latent_cut.squeeze(0).cpu().numpy()
@@ -213,9 +200,7 @@ def generate_latent_spaces(
             split_name, indices, full_dataset, data_module, model, device, cutting_seed
         )
 
-        _save_split_latent_spaces(
-            split_name, image_indices, latent_full_list, latent_cut_list, output_path
-        )
+        _save_split_latent_spaces(split_name, image_indices, latent_full_list, latent_cut_list, output_path)
 
         total_processed += len(image_indices)
         total_errors += split_errors
