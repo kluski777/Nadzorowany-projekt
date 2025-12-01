@@ -5,6 +5,7 @@ import torch
 import pytorch_lightning as pl
 from datasets import Dataset, load_dataset
 from tqdm import tqdm
+import torch.nn as nn
 
 from models import get_autoencoder
 from data.module import WikiArtDataModule
@@ -89,7 +90,7 @@ def _process_split(
     indices: List[int],
     full_dataset: Dataset,
     data_module: WikiArtDataModule,
-    model: AutoEncoder,
+    model: nn.Module,
     device: torch.device,
     cutting_seed: int,
 ) -> Tuple[List[int], List[np.ndarray], List[np.ndarray], int]:
