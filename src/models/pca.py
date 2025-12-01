@@ -2,6 +2,8 @@ import os
 import joblib
 from sklearn.decomposition import PCA
 from numpy import ndarray
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 class FeatureExtractor:
@@ -66,6 +68,27 @@ class FeatureExtractor:
 
         full_path = os.path.join(output_dir, f"{filename}.pkl")
         joblib.dump(self, full_path, 3)
+
+    def display_explained_variance(self):
+        """
+        Display a bar chart of the explained variance ratio of each principal component.
+        """
+        plt.figure(figsize=(10, 6))
+        plt.bar(range(1, len(self.model.explained_variance_ratio_) + 1), np.cumsum(self.model.explained_variance_ratio_))
+        plt.xlabel('Principal Component')
+        plt.ylabel('Explained Variance Ratio')
+        plt.title('Explained Variance by Principal Components (Cumulative)')
+        plt.show()
+
+    @property
+    def variance_percentage(self) -> float:
+        """
+        Get the percentage of variance by the selected components.
+
+        Returns:
+            float: Percentage of variance explained by the selected components.
+        """
+        return np.sum(self.model.explained_variance_ratio_) * 100
 
     @staticmethod
     def load(input_dir: str = "data/models", filename: str = "feature-extractor") -> "FeatureExtractor":

@@ -107,8 +107,8 @@ def parse_args():
     parser_fit_feature_extractor.add_argument(
         "--n-components",
         type=int,
-        default=50,
-        help="Number of principal components for Feature Extractor (default: 50)",
+        default=12,
+        help="Number of principal components for Feature Extractor (default: 12)",
     )
 
     parser_fit_clusterizer = subparsers.add_parser("fit_clusterizer", help="Fit Clusterizer on latent components")
