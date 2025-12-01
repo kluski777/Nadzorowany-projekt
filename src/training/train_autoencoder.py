@@ -6,7 +6,7 @@ from pytorch_lightning.loggers import CometLogger
 from dotenv import load_dotenv
 
 from models import get_autoencoder
-from data import WikiArtDataModule
+from data.module import WikiArtDataModule
 from utils import visualize_results
 from callbacks import ReconstructionLogger, EpochShuffleCallback
 
@@ -42,6 +42,7 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
         cutting_mode_val=cutting_config.get("mode_val", "reproducible"),
         cutting_mode_test=cutting_config.get("mode_test", "reproducible"),
         cutting_seed=cutting_seed,
+        channels=config["model"]["input_channels"], # info o tym czy dac maske czy nie
     )
 
     architecture = config["model"].get("architecture", "res_convt")

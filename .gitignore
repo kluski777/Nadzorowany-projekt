@@ -229,6 +229,6 @@ lightning_logs/
 
 # Data
 data/
-!src/data/
+!src/data/*.py
 !data/splits/
 !data/splits/*

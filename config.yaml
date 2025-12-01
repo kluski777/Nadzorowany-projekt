@@ -5,7 +5,7 @@ splits:
   test_split: 0.1
 
 data:
-  batch_size: 64
+  batch_size: 16
   num_workers: 3
   image_size: 256
   shuffle_buffer_size: 10000
@@ -20,8 +20,8 @@ cutting:
   seed: null # null to use experiment.seed
 
 model:
-  architecture: "res_convt"
-  input_channels: 3
+  architecture: "res_convt" # ["res_convt" | ""]  
+  input_channels: 4 # 4 channels means cutting adds mask where it was cut 
   latent_channels: 128 # 8192
   learning_rate: 0.001
   loss_type: "mse" # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
@@ -34,7 +34,7 @@ training:
   lr_scheduler_factor: 0.5
 
 experiment:
-  name: "autoencoder-10k-CT-Residual-mse-latent8k"
+  name: "autoencoder-10k-CT-Residual-mse-latent8k-with-mask"
   seed: 42 # Seed for training reproducibility
   visualization_samples: 8
   recon_log_every_n_epochs: 5

@@ -9,7 +9,6 @@ from torchvision import transforms
 
 from utils.cutting import apply_cut, apply_cut_reproducible
 
-
 class WikiArtStreamingDataset(IterableDataset):
     def __init__(
         self,
@@ -21,6 +20,7 @@ class WikiArtStreamingDataset(IterableDataset):
         enable_cutting=False,
         cutting_mode="random",
         cutting_seed=42,
+        channels: int = 3,
     ):
         self.base_dataset = base_dataset
         self.transform = transform
@@ -31,12 +31,14 @@ class WikiArtStreamingDataset(IterableDataset):
         self.enable_cutting = enable_cutting
         self.cutting_mode = cutting_mode
         self.cutting_seed = cutting_seed
+        self.channels = channels
 
     def set_epoch(self, epoch):
         """Set the current epoch for shuffling."""
         self.epoch = epoch
 
     def __iter__(self):
+
         dataset = self.base_dataset
 
         if self.shuffle_per_epoch:
@@ -46,15 +48,21 @@ class WikiArtStreamingDataset(IterableDataset):
         sample_index = 0
         for item in dataset:
             image = item["image"]
+            
             if self.transform:
                 image = self.transform(image)
+
 
             if self.enable_cutting:
                 if self.cutting_mode == "reproducible":
                     seed = self.cutting_seed + sample_index
-                    image = apply_cut_reproducible(image, seed)
+                    image = apply_cut_reproducible(image, seed, self.channels)
                 else:
-                    image = apply_cut(image)
+                    image = apply_cut(image, self.channels)
+
+            # nie wiem czy jest to potrzebe
+            if self.channels != image.shape[0]:
+                print(f'{self.channels=}, {image.shape=}')
 
             yield {"image": image}
             sample_index += 1
@@ -75,6 +83,7 @@ class WikiArtDataModule(pl.LightningDataModule):
         cutting_mode_val: str = "reproducible",
         cutting_mode_test: str = "reproducible",
         cutting_seed: int = None,
+        channels: int = 3,
     ):
         super().__init__()
 
@@ -90,6 +99,7 @@ class WikiArtDataModule(pl.LightningDataModule):
         self.cutting_mode_val = cutting_mode_val
         self.cutting_mode_test = cutting_mode_test
         self.cutting_seed = cutting_seed if cutting_seed is not None else seed
+        self.channels = channels
 
         self.transform = transforms.Compose(
             [
@@ -200,6 +210,7 @@ class WikiArtDataModule(pl.LightningDataModule):
             enable_cutting=self.enable_cutting,
             cutting_mode=self.cutting_mode_train,
             cutting_seed=self.cutting_seed,
+            channels=self.channels,
         )
 
         val_streaming = base_streaming.skip(self.train_size).take(self.val_size)
@@ -212,6 +223,7 @@ class WikiArtDataModule(pl.LightningDataModule):
             enable_cutting=self.enable_cutting,
             cutting_mode=self.cutting_mode_val,
             cutting_seed=self.cutting_seed,
+            channels=self.channels,
         )
 
         test_streaming = base_streaming.skip(self.train_size + self.val_size).take(self.test_size)
@@ -224,6 +236,7 @@ class WikiArtDataModule(pl.LightningDataModule):
             enable_cutting=self.enable_cutting,
             cutting_mode=self.cutting_mode_test,
             cutting_seed=self.cutting_seed,
+            channels=self.channels,
         )
 
         print(f"\n{'=' * 60}")

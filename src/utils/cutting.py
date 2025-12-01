@@ -1,8 +1,9 @@
 import torch
 import random
 
+#! wez to kurwa popraw to wyglada fatalito
 
-def regular_cut(image):
+def regular_cut(image: torch.Tensor, channels: int):
     """
     Apply a regular rectangular cut to a single image.
 
@@ -22,10 +23,14 @@ def regular_cut(image):
     image_to_ret = image.clone()
     image_to_ret[:, start_h : start_h + size_h, start_w : start_w + size_w] = 0.0
 
+    if channels == 4:
+        image_to_ret = torch.cat([torch.zeros(1, image_to_ret.shape[1], image_to_ret.shape[2]), image_to_ret])
+        image_to_ret[0, start_h : start_h + size_h, start_w : start_w + size_w] = 1.0
+
     return image_to_ret
 
 
-def irregular_cut(image):
+def irregular_cut(image: torch.Tensor, channels: int):
     """
     Apply an irregular cut to a single image by removing scattered pixels.
 
@@ -53,31 +58,41 @@ def irregular_cut(image):
 
     image_to_ret = image.clone()
     image_to_ret[:, h_indices, w_indices] = 0.0
+    
+    if channels == 4:
+        image_to_ret = torch.cat([torch.zeros(1, image_to_ret.shape[1], image_to_ret.shape[2]), image_to_ret])
+        image_to_ret[0, h_indices, w_indices] = 1.0
 
     return image_to_ret
 
 
-def apply_cut(image):
+def apply_cut(image, channels: int):
     """
     Randomly apply a cut to an image (33% no cut, 33% regular, 33% irregular).
 
     Args:
         image: Tensor of shape (C, H, W)
+        channels - number of channels to return (with mask or not)
 
     Returns:
         Modified image tensor
     """
+
     choice = random.random()
 
+
     if choice < 0.33:
-        return image  # No cut
+        if channels == 4:
+            image = torch.cat([torch.zeros((1, image.shape[1], image.shape[2])), image])
     elif choice < 0.66:
-        return regular_cut(image)
+        image = regular_cut(image, channels)
     else:
-        return irregular_cut(image)
+        image = irregular_cut(image, channels)
+
+    return image
 
 
-def apply_cut_reproducible(image, seed):
+def apply_cut_reproducible(image, seed, channels):
     """
     Apply a cut to an image deterministically based on seed.
     Uses 33% probability for each cut type (none, regular, irregular).
@@ -97,7 +112,9 @@ def apply_cut_reproducible(image, seed):
     choice = torch.rand(1, generator=generator).item()
 
     if choice < 0.33:
-        return image  # No cut
+        if channels == 4:
+            image = torch.cat([torch.zeros((1, image.shape[1], image.shape[1])), image])
+        return image
     elif choice < 0.66:
         # Regular cut with reproducible seed
         C, H, W = image.shape
@@ -109,6 +126,11 @@ def apply_cut_reproducible(image, seed):
 
         image_to_ret = image.clone()
         image_to_ret[:, start_h : start_h + size_h, start_w : start_w + size_w] = 0.0
+        
+        if channels == 4:
+            image_to_ret = torch.cat([torch.zeros(1, image_to_ret.shape[1], image_to_ret.shape[2]), image_to_ret])
+            image_to_ret[0, start_h : start_h + size_h, start_w : start_w + size_w] = 1.0
+
         return image_to_ret
     else:
         # Irregular cut with reproducible seed
@@ -130,4 +152,9 @@ def apply_cut_reproducible(image, seed):
 
         image_to_ret = image.clone()
         image_to_ret[:, h_indices, w_indices] = 0.0
+
+        if channels == 4:
+            image_to_ret = torch.cat([torch.zeros(1, image_to_ret.shape[1], image_to_ret.shape[2]), image_to_ret])
+            image_to_ret[0, h_indices, w_indices] = 1.0
+
         return image_to_ret
