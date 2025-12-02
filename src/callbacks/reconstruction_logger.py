@@ -40,6 +40,10 @@ class ReconstructionLogger(Callback):
             if isinstance(reconstructed, tuple):
                 reconstructed = reconstructed[0]
 
+        if images.shape[1] == 4:
+            images = images[:, 1:, :, :]
+            reconstructed = reconstructed[:, 1:, :, :]
+
         pl_module.train()
 
         images = images.cpu()

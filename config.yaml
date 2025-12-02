@@ -1,6 +1,6 @@
 splits:
   seed: 42 # seed for split generation
-  total_samples: 10000 # null to use full dataset (~100k images)
+  total_samples: 1000 # null to use full dataset (~100k images)
   val_split: 0.1
   test_split: 0.1
 
@@ -23,12 +23,12 @@ model:
   architecture: "res_convt" # ["res_convt" | ""]  
   input_channels: 4 # 4 channels means cutting adds mask where it was cut 
   latent_channels: 128 # 8192
-  learning_rate: 0.001
+  learning_rate: 0.004
   loss_type: "mse" # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
 
 training:
-  max_epochs: 150
-  gradient_clip_val: 1.0
+  max_epochs: 20
+  gradient_clip_val: 10.0
   early_stopping_patience: 10
   lr_scheduler_patience: 5
   lr_scheduler_factor: 0.5
