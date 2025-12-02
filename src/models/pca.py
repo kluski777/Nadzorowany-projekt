@@ -4,6 +4,7 @@ from sklearn.decomposition import PCA
 from numpy import ndarray
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 
 class FeatureExtractor:
@@ -69,7 +70,7 @@ class FeatureExtractor:
         full_path = os.path.join(output_dir, f"{filename}.pkl")
         joblib.dump(self, full_path, 3)
 
-    def display_explained_variance(self):
+    def save_explained_variance_plot(self, output_dir: str = "data/plots", filename: str = "explained-variance"):
         """
         Display a bar chart of the explained variance ratio of each principal component.
         """
@@ -78,7 +79,11 @@ class FeatureExtractor:
         plt.xlabel('Principal Component')
         plt.ylabel('Explained Variance Ratio')
         plt.title('Explained Variance by Principal Components (Cumulative)')
-        plt.show()
+
+        path = Path(output_dir)
+        path.mkdir(parents=True, exist_ok=True)
+        plt.savefig(path / f"{filename}.png")
+        plt.close()
 
     @property
     def variance_percentage(self) -> float:
