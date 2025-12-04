@@ -37,6 +37,7 @@ def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: i
         splits_dir=config["data"]["splits_dir"],
         enable_cutting=False,
         cutting_seed=cutting_seed,
+        channels=config["model"]["input_channels"]
     )
     data_module.prepare_data()
     return data_module
@@ -57,6 +58,7 @@ def _process_single_image(
     model: pl.LightningModule,
     device: torch.device,
     cutting_seed: int,
+    input_channels: int,
 ) -> Tuple[int, np.ndarray, np.ndarray]:
     """
     Process a single image and return its latent spaces.
@@ -70,6 +72,8 @@ def _process_single_image(
 
     # Apply transform
     image_tensor = data_module.transform(image)
+    # print(f'{image_tensor.shape=}, {data_module.transform=}')
+
     image_tensor = image_tensor.unsqueeze(0).to(device)
 
     # Encode full image
@@ -77,7 +81,7 @@ def _process_single_image(
     latent_full = latent_full.squeeze(0).cpu().numpy()
 
     # Apply cut and encode cut image
-    image_cut = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + image_idx)
+    image_cut = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + image_idx, input_channels)
     image_cut = image_cut.unsqueeze(0).to(device)
     latent_cut = model.encoder(image_cut)
     latent_cut = latent_cut.squeeze(0).cpu().numpy()
@@ -93,6 +97,7 @@ def _process_split(
     model: nn.Module,
     device: torch.device,
     cutting_seed: int,
+    intput_channels: int = 3,
 ) -> Tuple[List[int], List[np.ndarray], List[np.ndarray], int]:
     """
     Process all images in a split and collect their latent spaces.
@@ -109,7 +114,7 @@ def _process_split(
         for idx in tqdm(indices, desc=f"Processing {split_name}"):
             try:
                 image_idx, latent_full, latent_cut = _process_single_image(
-                    idx, full_dataset, data_module, model, device, cutting_seed
+                    idx, full_dataset, data_module, model, device, cutting_seed, intput_channels
                 )
                 image_indices.append(image_idx)
                 latent_full_list.append(latent_full)
@@ -153,7 +158,7 @@ def generate_latent_spaces(
     checkpoint_path: str,
     output_dir: str = "data/latent_spaces",
     cutting_seed: Optional[int] = None,
-    batch_size: int = 1,
+    batch_size: int = 1
 ):
     print(f"Loading configuration from: {config_path}")
     config = load_config(config_path)

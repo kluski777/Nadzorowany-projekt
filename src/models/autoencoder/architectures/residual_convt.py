@@ -44,7 +44,11 @@ class Decoder(nn.Module):
             # (64 x 128 x 128) -> (32 x 256 x 256)
             UpsampleBlock(64, 32, kernel_size=4, stride=2, padding=1, use_residual=False),
             # (32 x 256 x 256) -> (output_channels x 256 x 256)
-            nn.Conv2d(32, output_channels, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(32, output_channels, kernel_size=3, stride=1, padding=1), nn.GELU(),
+            nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding=1),  nn.GELU(), 
+            nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding=1),  nn.GELU(),
+            nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding=1),  nn.GELU(),
+            nn.Conv2d(output_channels, output_channels, kernel_size=3, stride=1, padding=1),
             nn.Sigmoid(),
         )
 

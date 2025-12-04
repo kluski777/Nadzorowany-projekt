@@ -5,6 +5,7 @@ import json
 import pytorch_lightning as pl
 from datasets import load_dataset
 from torch.utils.data import DataLoader, IterableDataset
+import torch
 from torchvision import transforms
 
 from utils.cutting import apply_cut, apply_cut_reproducible
@@ -61,8 +62,8 @@ class WikiArtStreamingDataset(IterableDataset):
                     image = apply_cut(image, self.channels)
 
             # nie wiem czy jest to potrzebe
-            if self.channels != image.shape[0]:
-                print(f'{self.channels=}, {image.shape=}')
+            # if self.channels != image.shape[0]:
+            #     print(f'{self.channels=}, {image.shape=}')
 
             yield {"image": image}
             sample_index += 1
@@ -101,10 +102,19 @@ class WikiArtDataModule(pl.LightningDataModule):
         self.cutting_seed = cutting_seed if cutting_seed is not None else seed
         self.channels = channels
 
+        # nie wiem czy to w ogole dziala
+        def add_fourth_channel(image: torch.Tensor):
+            if self.channels == 4:
+                zeros_channel = torch.zeros((1, image.shape[1], image.shape[2]))
+                return torch.cat([zeros_channel, image], dim=0)
+            else:
+                return image
+
         self.transform = transforms.Compose(
             [
                 transforms.Resize((image_size, image_size)),
                 transforms.ToTensor(),
+                transforms.Lambda(add_fourth_channel)
             ]
         )
 

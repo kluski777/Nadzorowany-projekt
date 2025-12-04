@@ -167,13 +167,13 @@ def cmd_train_autoencoder(args):
 
 def cmd_generate_latent_spaces(args):
     from data.generate_latent_spaces import generate_latent_spaces
-
+    
     generate_latent_spaces(
         config_path=args.config,
         checkpoint_path=args.checkpoint,
         output_dir=args.output_dir,
         cutting_seed=args.cutting_seed,
-        batch_size=args.batch_size,
+        batch_size=args.batch_size
     )
 
 
