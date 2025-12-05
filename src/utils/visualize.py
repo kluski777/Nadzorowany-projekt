@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import umap
 
-from .latent_space import load_latent_spaces
+from .latent import load_latent_spaces, load_latent_components
 
 
 def visualize_results(
@@ -52,11 +52,19 @@ def visualize_results(
     plt.show()
 
 
-def visualize_umap(input_dir: str, c: list[int] | None = None):
-    """Visualize UMAP embeddings of latent spaces."""
-    train_latent_spaces = load_latent_spaces(input_dir, "train")
-    val_latent_spaces = load_latent_spaces(input_dir, "val")
-    test_latent_spaces = load_latent_spaces(input_dir, "test")
+def visualize_umap(input_dir: str, type: str, c: list[int] | None = None):
+    """Visualize UMAP embeddings."""
+    loader = None
+    if type == "spaces":
+        loader = load_latent_spaces
+    elif type == "components":
+        loader = load_latent_components
+    else:
+        raise Exception("Unknown type of latent")
+
+    train_latent_spaces = loader(input_dir, "train")
+    val_latent_spaces = loader(input_dir, "val")
+    test_latent_spaces = loader(input_dir, "test")
 
     latent_spaces = np.vstack((train_latent_spaces, val_latent_spaces, test_latent_spaces))
 
@@ -70,7 +78,7 @@ def visualize_umap(input_dir: str, c: list[int] | None = None):
         c=c,
         edgecolors="k",
     )
-    plt.title("UMAP Visualization of Latent Spaces")
+    plt.title("UMAP Visualization")
     plt.xlabel("UMAP Dimension 1")
     plt.ylabel("UMAP Dimension 2")
     plt.show()
