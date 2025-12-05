@@ -3,7 +3,7 @@ import numpy as np
 
 
 def load_latent_spaces(input_dir: str, split: str) -> np.ndarray:
-    """Load and flatten latent spaces from .npz files in the specified directory."""
+    """Load and reshape latent spaces from .npz files in the specified directory."""
     full_path = Path(input_dir) / f"{split}.npz"
     data = np.load(full_path)
     latent_full = data["full"]
@@ -12,7 +12,7 @@ def load_latent_spaces(input_dir: str, split: str) -> np.ndarray:
 
 
 def load_latent_components(input_dir: str, split: str) -> np.ndarray:
-    """Load and flatten latent components from .npy files in the specified directory."""
+    """Load and latent components from .npy files in the specified directory."""
     full_path = Path(input_dir) / f"{split}.npy"
     latent_components = np.load(full_path)
 

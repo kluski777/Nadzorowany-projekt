@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import umap
 
-from .latent import load_latent_spaces, load_latent_components
+from .latent import load_latent_components
+from .cluster import load_clusters
 
 
 def visualize_results(
@@ -52,32 +53,23 @@ def visualize_results(
     plt.show()
 
 
-def visualize_umap(input_dir: str, type: str, c: list[int] | None = None):
+def visualize_umap(input_dir: str):
     """Visualize UMAP embeddings."""
-    loader = None
-    if type == "spaces":
-        loader = load_latent_spaces
-    elif type == "components":
-        loader = load_latent_components
-    else:
-        raise Exception("Unknown type of latent")
-
-    train_latent_spaces = loader(input_dir, "train")
-    val_latent_spaces = loader(input_dir, "val")
-    test_latent_spaces = loader(input_dir, "test")
-
+    train_latent_spaces = load_latent_components(input_dir, "train")
+    val_latent_spaces = load_latent_components(input_dir, "val")
+    test_latent_spaces = load_latent_components(input_dir, "test")
     latent_spaces = np.vstack((train_latent_spaces, val_latent_spaces, test_latent_spaces))
+
+    train_clusters = load_clusters("train")
+    val_clusters = load_clusters("val")
+    test_clusters = load_clusters("test")
+    clusters = np.concat((train_clusters, val_clusters, test_clusters))
 
     reducer = umap.UMAP(n_components=2)
     embedding = reducer.fit_transform(latent_spaces)
 
     plt.figure(figsize=(10, 8))
-    plt.scatter(
-        embedding[:, 0],
-        embedding[:, 1],
-        c=c,
-        edgecolors="k",
-    )
+    plt.scatter(embedding[:, 0], embedding[:, 1], c=clusters, edgecolors="k", cmap="tab10")
     plt.title("UMAP Visualization")
     plt.xlabel("UMAP Dimension 1")
     plt.ylabel("UMAP Dimension 2")

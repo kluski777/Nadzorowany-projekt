@@ -85,14 +85,8 @@ def parse_args():
     parser_umap.add_argument(
         "--input-dir",
         type=str,
-        default="data/latent_spaces",  # data/latent_spaces, data/latent_components
-        help="Input directory containing files for UMAP visualization (default: data/latent_spaces)",
-    )
-    parser_umap.add_argument(
-        "--type",
-        type=str,
-        default="spaces",  # spaces, components
-        help="Input directory containing files for UMAP visualization (default: data/latent_spaces)",
+        default="data/latent_components",
+        help="Input directory containing files for UMAP visualization (default: data/latent_components)",
     )
 
     parser_fit_feature_extractor = subparsers.add_parser(
@@ -230,7 +224,6 @@ def cmd_visualize_umap(args):
 
     visualize_umap(
         input_dir=args.input_dir,
-        type=args.type,
     )
 
     print("UMAP visualization completed")
