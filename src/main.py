@@ -1,4 +1,4 @@
-import comet_ml  # noqa: F401 (import comet_ml before pytorch)
+import comet_ml  # type: ignore # noqa: F401 (import comet_ml before pytorch)
 import argparse
 
 from utils import load_config
@@ -131,6 +131,26 @@ def parse_args():
         help="Number of clusters for Clusterizer fitting (default: 20)",
     )
 
+    parser_generate_components = subparsers.add_parser("generate_latent_components", help="Generate latent components")
+    parser_generate_components.add_argument(
+        "--input-dir",
+        type=str,
+        default="data/latent_spaces",
+        help="Input directory containing latent spaces (default: data/latent_spaces)",
+    )
+    parser_generate_components.add_argument(
+        "--output-dir",
+        type=str,
+        default="data/latent_components",
+        help="Output directory for latent components (default: data/latent_components)",
+    )
+    parser_generate_components.add_argument(
+        "--checkpoint",
+        type=str,
+        default="data/models/feature_extractor.pkl",
+        help="Path to checkpoint file (.pkl) to load model from",
+    )
+
     return parser.parse_args(), parser
 
 
@@ -217,6 +237,21 @@ def cmd_fit_clusterizer(args):
     print("Clusterizer fitting completed and saved")
 
 
+def cmd_generate_components(args):
+    from data import generate_latent_components
+
+    print("Started generating latent components")
+
+    generate_latent_components(
+        input_dir=args.input_dir,
+        checkpoint_path=args.checkpoint,
+        splits=["train", "val", "test"],
+        output_dir=args.output_dir,
+    )
+
+    print("Latent components have been generated")
+
+
 def run():
     args, parser = parse_args()
     match args.command:
@@ -230,6 +265,8 @@ def run():
             cmd_visualize_umap(args)
         case "fit_feature_extractor":
             cmd_fit_feature_extractor(args)
+        case "generate_latent_components":
+            cmd_generate_components(args)
         case "fit_clusterizer":
             cmd_fit_clusterizer(args)
         case _:

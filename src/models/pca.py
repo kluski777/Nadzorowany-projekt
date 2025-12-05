@@ -56,13 +56,13 @@ class FeatureExtractor:
         """
         return self.model.fit_transform(latent_spaces)
 
-    def save(self, output_dir: str = "data/models", filename: str = "feature-extractor") -> None:
+    def save(self, output_dir: str = "data/models", filename: str = "feature_extractor") -> None:
         """
         Save the FeatureExtractor instance to a file using joblib.
 
         Args:
             output_dir (str): Directory to save the file. Defaults to 'data/models'.
-            filename (str): Name of the file without extension. Defaults to 'feature-extractor'.
+            filename (str): Name of the file without extension. Defaults to 'feature_extractor'.
         """
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -75,10 +75,12 @@ class FeatureExtractor:
         Display a bar chart of the explained variance ratio of each principal component.
         """
         plt.figure(figsize=(10, 6))
-        plt.bar(range(1, len(self.model.explained_variance_ratio_) + 1), np.cumsum(self.model.explained_variance_ratio_))
-        plt.xlabel('Principal Component')
-        plt.ylabel('Explained Variance Ratio')
-        plt.title('Explained Variance by Principal Components (Cumulative)')
+        plt.bar(
+            range(1, len(self.model.explained_variance_ratio_) + 1), np.cumsum(self.model.explained_variance_ratio_)
+        )
+        plt.xlabel("Principal Component")
+        plt.ylabel("Explained Variance Ratio")
+        plt.title("Explained Variance by Principal Components (Cumulative)")
 
         path = Path(output_dir)
         path.mkdir(parents=True, exist_ok=True)
@@ -96,16 +98,14 @@ class FeatureExtractor:
         return np.sum(self.model.explained_variance_ratio_) * 100
 
     @staticmethod
-    def load(input_dir: str = "data/models", filename: str = "feature-extractor") -> "FeatureExtractor":
+    def load(checkpoint_path: str = "data/models/feature_extractor.pkl") -> "FeatureExtractor":
         """
         Load a FeatureExtractor instance from a file.
 
         Args:
-            input_dir (str): Directory where the file is located. Defaults to 'data/models'.
-            filename (str): Name of the file without extension. Defaults to 'feature-extractor'.
+            checkpoint_path (str): Full path to the checkpoint file. Defaults to 'data/models/feature_extractor.pkl'.
 
         Returns:
             FeatureExtractor: The loaded FeatureExtractor instance.
         """
-        full_path = os.path.join(input_dir, f"{filename}.pkl")
-        return joblib.load(full_path)
+        return joblib.load(checkpoint_path)

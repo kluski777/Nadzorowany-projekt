@@ -210,7 +210,7 @@ def generate_latent_spaces(
         print(f"  Errors: {split_errors}")
 
     print(f"\n{'=' * 60}")
-    print(f"Generation complete!")
+    print("Generation complete!")
     print(f"  Total processed: {total_processed}")
     print(f"  Total errors: {total_errors}")
     print(f"  Output directory: {output_path}")
