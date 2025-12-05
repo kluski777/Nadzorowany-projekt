@@ -157,6 +157,26 @@ def parse_args():
         help="Path to checkpoint file (.pkl) to load model from",
     )
 
+    parser_generate_clusters = subparsers.add_parser("generate_clusters", help="Generate clusters")
+    parser_generate_clusters.add_argument(
+        "--input-dir",
+        type=str,
+        default="data/latent_components",
+        help="Input directory containing latent components (default: data/latent_components)",
+    )
+    parser_generate_clusters.add_argument(
+        "--output-dir",
+        type=str,
+        default="data/clusters",
+        help="Output directory for clusters (default: data/clusters)",
+    )
+    parser_generate_clusters.add_argument(
+        "--checkpoint",
+        type=str,
+        default="data/models/clusterizer.pkl",
+        help="Path to checkpoint file (.pkl) to load model from",
+    )
+
     return parser.parse_args(), parser
 
 
@@ -259,6 +279,21 @@ def cmd_generate_components(args):
     print("Latent components have been generated")
 
 
+def cmd_generate_clusters(args):
+    from data import generate_clusters
+
+    print("Started generating clusters")
+
+    generate_clusters(
+        input_dir=args.input_dir,
+        checkpoint_path=args.checkpoint,
+        splits=["train", "val", "test"],
+        output_dir=args.output_dir,
+    )
+
+    print("Clusters have been generated")
+
+
 def run():
     args, parser = parse_args()
     match args.command:
@@ -276,6 +311,8 @@ def run():
             cmd_generate_components(args)
         case "fit_clusterizer":
             cmd_fit_clusterizer(args)
+        case "generate_clusters":
+            cmd_generate_clusters(args)
         case _:
             parser.print_help()
 

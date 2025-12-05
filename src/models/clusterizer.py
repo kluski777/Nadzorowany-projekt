@@ -70,16 +70,14 @@ class Clusterizer:
         joblib.dump(self, full_path, 3)
 
     @staticmethod
-    def load(input_dir="data/models", filename="clusterizer"):
+    def load(checkpoint_path: str = "data/models/clusterizer.pkl"):
         """
         Load a Clusterizer instance from a file.
 
         Args:
-            input_dir (str): Directory where the file is located. Defaults to 'data/models'.
-            filename (str): Name of the file without extension. Defaults to 'clusterizer'.
+            checkpoint_path (str): Path to the checkpoint file (.pkl). Defaults to 'data/models/clusterizer.pkl'.
 
         Returns:
             Clusterizer: The loaded Clusterizer instance.
         """
-        full_path = os.path.join(input_dir, f"{filename}.pkl")
-        return joblib.load(full_path)
+        return joblib.load(checkpoint_path)
