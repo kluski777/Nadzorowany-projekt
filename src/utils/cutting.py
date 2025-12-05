@@ -1,9 +1,8 @@
 import torch
 import random
+import numpy as np
 
-#! wez to kurwa popraw to wyglada fatalito
-
-def regular_cut(image: torch.Tensor, channels: int):
+def regular_cut(image: torch.Tensor):
     """
     Apply a regular rectangular cut to a single image.
 
@@ -23,14 +22,13 @@ def regular_cut(image: torch.Tensor, channels: int):
     image_to_ret = image.clone()
     image_to_ret[:, start_h : start_h + size_h, start_w : start_w + size_w] = 0.0
 
-    if channels == 4:
-        image_to_ret = torch.cat([torch.zeros(1, image_to_ret.shape[1], image_to_ret.shape[2]), image_to_ret])
-        image_to_ret[0, start_h : start_h + size_h, start_w : start_w + size_w] = 1.0
+    mask = np.zeros((1, H, W))
+    mask[:, start_h:start_h+size_h, start_w:start_w+size_w] = 1.0
 
-    return image_to_ret
+    return image_to_ret, mask
 
 
-def irregular_cut(image: torch.Tensor, channels: int):
+def irregular_cut(image: torch.Tensor):
     """
     Apply an irregular cut to a single image by removing scattered pixels.
 
@@ -58,15 +56,13 @@ def irregular_cut(image: torch.Tensor, channels: int):
 
     image_to_ret = image.clone()
     image_to_ret[:, h_indices, w_indices] = 0.0
-    
-    if channels == 4:
-        image_to_ret = torch.cat([torch.zeros(1, image_to_ret.shape[1], image_to_ret.shape[2]), image_to_ret])
-        image_to_ret[0, h_indices, w_indices] = 1.0
 
-    return image_to_ret
+    mask = torch.zeros(1, H, W)
+    mask[:, h_indices, w_indices] = 1.0
+    return image_to_ret, mask
 
 
-def apply_cut(image, channels: int):
+def apply_cut(image):
     """
     Randomly apply a cut to an image (33% no cut, 33% regular, 33% irregular).
 
@@ -80,19 +76,18 @@ def apply_cut(image, channels: int):
 
     choice = random.random()
 
-
     if choice < 0.33:
-        if channels == 4:
-            image = torch.cat([torch.zeros((1, image.shape[1], image.shape[2])), image])
+        mask = np.zeros((1, image.shape[-2], image.shape[-1]))
+        image = image
     elif choice < 0.66:
-        image = regular_cut(image, channels)
+        image, mask = regular_cut(image)
     else:
-        image = irregular_cut(image, channels)
+        image, mask = irregular_cut(image)
 
-    return image
+    return image, mask
 
 
-def apply_cut_reproducible(image, seed, channels):
+def apply_cut_reproducible(image, seed):
     """
     Apply a cut to an image deterministically based on seed.
     Uses 33% probability for each cut type (none, regular, irregular).
@@ -108,16 +103,16 @@ def apply_cut_reproducible(image, seed, channels):
     generator = torch.Generator()
     generator.manual_seed(seed)
 
+    _, H, W = image.shape
+
     # Use generator to determine cut type
     choice = torch.rand(1, generator=generator).item()
+    mask = torch.zeros((1, H, W))
 
     if choice < 0.33:
-        if channels == 4:
-            image = torch.cat([torch.zeros((1, image.shape[1], image.shape[1])), image])
-        return image
+        image_to_ret = image
     elif choice < 0.66:
         # Regular cut with reproducible seed
-        C, H, W = image.shape
         size_h, size_w = H // 4, W // 4
 
         # Use generator for random starting position
@@ -127,11 +122,7 @@ def apply_cut_reproducible(image, seed, channels):
         image_to_ret = image.clone()
         image_to_ret[:, start_h : start_h + size_h, start_w : start_w + size_w] = 0.0
         
-        if channels == 4:
-            image_to_ret = torch.cat([torch.zeros(1, image_to_ret.shape[1], image_to_ret.shape[2]), image_to_ret])
-            image_to_ret[0, start_h : start_h + size_h, start_w : start_w + size_w] = 1.0
-
-        return image_to_ret
+        mask[:, start_h: start_h + size_h, start_w : start_w + size_w] = 1.0
     else:
         # Irregular cut with reproducible seed
         C, H, W = image.shape
@@ -152,9 +143,6 @@ def apply_cut_reproducible(image, seed, channels):
 
         image_to_ret = image.clone()
         image_to_ret[:, h_indices, w_indices] = 0.0
-
-        if channels == 4:
-            image_to_ret = torch.cat([torch.zeros(1, image_to_ret.shape[1], image_to_ret.shape[2]), image_to_ret])
-            image_to_ret[0, h_indices, w_indices] = 1.0
-
-        return image_to_ret
+        mask[:, h_indices, w_indices] = 1.0
+        
+    return image_to_ret, mask

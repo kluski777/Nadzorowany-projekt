@@ -1,5 +1,7 @@
-import comet_ml  # noqa: F401 (import comet_ml before pytorch)
+import comet_ml # warning import comet before torch
 import argparse
+
+#TODO rzuc na githuba to
 
 from utils import load_config
 
@@ -232,6 +234,8 @@ def run():
             cmd_fit_feature_extractor(args)
         case "fit_clusterizer":
             cmd_fit_clusterizer(args)
+        case "train_inpainter":
+            pass # jak skoncze pisac diffusion.ipynb to sie doda
         case _:
             parser.print_help()
 

@@ -35,14 +35,13 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
         image_size=config["data"]["image_size"],
         data_dir=config["data"]["data_dir"],
         shuffle_buffer_size=config["data"]["shuffle_buffer_size"],
-        seed=seed,
+        seed=seed, 
         splits_dir=config["data"]["splits_dir"],
         enable_cutting=cutting_config.get("enable", False),
         cutting_mode_train=cutting_config.get("mode_train", "random"),
         cutting_mode_val=cutting_config.get("mode_val", "reproducible"),
         cutting_mode_test=cutting_config.get("mode_test", "reproducible"),
         cutting_seed=cutting_seed,
-        channels=config["model"]["input_channels"], # info o tym czy dac maske czy nie
     )
 
     architecture = config["model"].get("architecture", "res_convt")

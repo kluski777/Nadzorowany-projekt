@@ -36,8 +36,7 @@ def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: i
         seed=seed,
         splits_dir=config["data"]["splits_dir"],
         enable_cutting=False,
-        cutting_seed=cutting_seed,
-        channels=config["model"]["input_channels"]
+        cutting_seed=cutting_seed
     )
     data_module.prepare_data()
     return data_module
@@ -58,13 +57,12 @@ def _process_single_image(
     model: pl.LightningModule,
     device: torch.device,
     cutting_seed: int,
-    input_channels: int,
-) -> Tuple[int, np.ndarray, np.ndarray]:
+) -> Tuple[int, np.ndarray, np.ndarray, np.ndarray]:
     """
     Process a single image and return its latent spaces.
 
     Returns:
-        Tuple of (image_index, latent_full, latent_cut)
+        Tuple of (image_index, latent_full, latent_cut, mask)
     """
     # Load image from dataset
     image_item = full_dataset[image_idx]
@@ -72,7 +70,6 @@ def _process_single_image(
 
     # Apply transform
     image_tensor = data_module.transform(image)
-    # print(f'{image_tensor.shape=}, {data_module.transform=}')
 
     image_tensor = image_tensor.unsqueeze(0).to(device)
 
@@ -81,12 +78,13 @@ def _process_single_image(
     latent_full = latent_full.squeeze(0).cpu().numpy()
 
     # Apply cut and encode cut image
-    image_cut = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + image_idx, input_channels)
+    image_cut, mask = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + image_idx)
     image_cut = image_cut.unsqueeze(0).to(device)
+    mask = mask.detach().cpu().numpy()
     latent_cut = model.encoder(image_cut)
     latent_cut = latent_cut.squeeze(0).cpu().numpy()
 
-    return image_idx, latent_full, latent_cut
+    return image_idx, latent_full, latent_cut, mask
 
 
 def _process_split(
@@ -96,9 +94,8 @@ def _process_split(
     data_module: WikiArtDataModule,
     model: nn.Module,
     device: torch.device,
-    cutting_seed: int,
-    intput_channels: int = 3,
-) -> Tuple[List[int], List[np.ndarray], List[np.ndarray], int]:
+    cutting_seed: int
+) -> Tuple[List[int], List[np.ndarray], List[np.ndarray], int, List[np.ndarray]]:
     """
     Process all images in a split and collect their latent spaces.
 
@@ -108,23 +105,25 @@ def _process_split(
     image_indices = []
     latent_full_list = []
     latent_cut_list = []
+    mask_list = []
     error_count = 0
 
     with torch.inference_mode():
         for idx in tqdm(indices, desc=f"Processing {split_name}"):
             try:
-                image_idx, latent_full, latent_cut = _process_single_image(
-                    idx, full_dataset, data_module, model, device, cutting_seed, intput_channels
+                image_idx, latent_full, latent_cut, mask = _process_single_image(
+                    idx, full_dataset, data_module, model, device, cutting_seed
                 )
                 image_indices.append(image_idx)
                 latent_full_list.append(latent_full)
                 latent_cut_list.append(latent_cut)
+                mask_list.append(mask)
             except Exception as e:
                 print(f"\nError processing image {idx} in {split_name}: {e}")
                 error_count += 1
                 continue
 
-    return image_indices, latent_full_list, latent_cut_list, error_count
+    return image_indices, latent_full_list, latent_cut_list, error_count, mask_list
 
 
 def _save_split_latent_spaces(
@@ -132,6 +131,7 @@ def _save_split_latent_spaces(
     image_indices: List[int],
     latent_full_list: List[np.ndarray],
     latent_cut_list: List[np.ndarray],
+    masks: List[np.ndarray],
     output_path: Path,
 ) -> None:
     """Save latent spaces for a split as a compressed numpy file."""
@@ -141,14 +141,22 @@ def _save_split_latent_spaces(
     indices_array = np.array(image_indices, dtype=np.int64)
     full_array = np.stack(latent_full_list, axis=0)
     cut_array = np.stack(latent_cut_list, axis=0)
+    masks_array = np.stack(masks, axis=0)
 
     output_file = output_path / f"{split_name}.npz"
+    
+    np.savez_compressed(
+        output_path / "masks.npz",
+        masks=masks_array,
+    )
+
     np.savez_compressed(
         output_file,
         indices=indices_array,
         full=full_array,
         cut=cut_array,
     )
+
     print(f"Saved {output_file} ({output_file.stat().st_size / 1024 / 1024:.2f} MB)")
     print(f"  Shape - full: {full_array.shape}, cut: {cut_array.shape}")
 
@@ -202,11 +210,11 @@ def generate_latent_spaces(
         print(f"Processing {split_name} split ({len(indices)} images)")
         print(f"{'=' * 60}")
 
-        image_indices, latent_full_list, latent_cut_list, split_errors = _process_split(
+        image_indices, latent_full_list, latent_cut_list, split_errors, mask_list = _process_split(
             split_name, indices, full_dataset, data_module, model, device, cutting_seed
         )
 
-        _save_split_latent_spaces(split_name, image_indices, latent_full_list, latent_cut_list, output_path)
+        _save_split_latent_spaces(split_name, image_indices, latent_full_list, latent_cut_list, mask_list, output_path)
 
         total_processed += len(image_indices)
         total_errors += split_errors
