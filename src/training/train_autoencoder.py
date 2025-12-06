@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from models import get_autoencoder
 from data import WikiArtDataModule
 from utils import visualize_results
-from callbacks import ReconstructionLogger, EpochShuffleCallback
+from callbacks import ReconstructionLogger, EpochShuffleCallback, CometModelUploadCallback
 
 load_dotenv()
 
@@ -86,6 +86,11 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
 
     epoch_shuffle_callback = EpochShuffleCallback()
 
+    comet_upload_callback = CometModelUploadCallback(
+        model_name_prefix=config["experiment"]["name"],
+        comet_logger=logger,
+    )
+
     logger.log_hyperparams(config)
 
     trainer = pl.Trainer(
@@ -98,6 +103,7 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
             early_stop_callback,
             recon_logger,
             epoch_shuffle_callback,
+            comet_upload_callback,
         ],
         logger=logger,
         log_every_n_steps=10,
