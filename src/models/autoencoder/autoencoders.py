@@ -1,12 +1,13 @@
 import pytorch_lightning as pl
 
-from models.autoencoder.architectures import ResidualConvtAutoEncoder, ResK1UpsampleAutoEncoder
+from models.autoencoder.architectures import ResidualConvtAutoEncoder, ResK1UpsampleAutoEncoder, ResNet18AutoEncoder
 
 
 def get_autoencoder(architecture: str) -> pl.LightningModule:
     autoencoders = {
         "res_convt": ResidualConvtAutoEncoder,
         "res_k_1_upsample": ResK1UpsampleAutoEncoder,
+        "resnet18_ae": ResNet18AutoEncoder,
     }
 
     if architecture not in autoencoders:
