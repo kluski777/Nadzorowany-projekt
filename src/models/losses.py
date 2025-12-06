@@ -91,6 +91,17 @@ def bce_loss(
     return F.binary_cross_entropy(predictions, targets)
 
 
+def combined_l1_bce_loss(
+    predictions: torch.Tensor,
+    targets: torch.Tensor,
+    l1_weight: float = 1.0,
+    bce_weight: float = 0.1,
+) -> torch.Tensor:
+    l1 = F.l1_loss(predictions, targets)
+    bce = F.binary_cross_entropy(predictions, targets)
+    return l1_weight * l1 + bce_weight * bce
+
+
 def combined_mse_bce_loss(
     predictions: torch.Tensor,
     targets: torch.Tensor,
@@ -136,6 +147,7 @@ def get_loss_function(loss_type: str) -> Callable[[torch.Tensor, torch.Tensor], 
         "huber": huber_loss,
         "bce": bce_loss,
         "combined_mse_bce": combined_mse_bce_loss,
+        "combined_l1_bce_loss": combined_l1_bce_loss,
     }
 
     if loss_type not in loss_functions:
