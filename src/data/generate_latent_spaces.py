@@ -7,7 +7,7 @@ from datasets import Dataset, load_dataset
 from tqdm import tqdm
 import torch.nn as nn
 
-from models import get_autoencoder
+from models.autoencoder import get_autoencoder
 from data.module import WikiArtDataModule
 from utils import load_config
 from utils.cutting import apply_cut_reproducible
@@ -44,7 +44,7 @@ def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: i
 
 def _load_model(checkpoint_path: str, config: dict, device: torch.device) -> pl.LightningModule:
     """Load model from checkpoint and move to device."""
-    model = get_autoencoder(config["model"]["architecture"]).load_from_checkpoint(checkpoint_path)
+    model = get_autoencoder(config["model"]["architecture"]).load_from_checkpoint(checkpoint_path, strict=False)
     model.eval()
     model = model.to(device)
     return model
