@@ -5,6 +5,7 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from models.losses import get_loss_function
+from models.autoencoder.blocks import ResidualBlock
 
 
 class PixelShuffleEncoder(nn.Module):
@@ -21,18 +22,22 @@ class PixelShuffleEncoder(nn.Module):
             nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3),
             nn.BatchNorm2d(64),
             nn.GELU(),
+            ResidualBlock(64),
             # 128x128x64 -> 64x64x128
             nn.Conv2d(64, 128, kernel_size=7, stride=2, padding=3),
             nn.BatchNorm2d(128),
             nn.GELU(),
+            ResidualBlock(128),
             # 64x64x128 -> 32x32x256
             nn.Conv2d(128, 256, kernel_size=5, stride=2, padding=2),
             nn.BatchNorm2d(256),
             nn.GELU(),
+            ResidualBlock(256),
             # 32x32x256 -> 16x16x512
             nn.Conv2d(256, 512, kernel_size=5, stride=2, padding=2),
             nn.BatchNorm2d(512),
             nn.GELU(),
+            ResidualBlock(512),
             # 16x16x512 -> 8x8x32
             nn.Conv2d(512, latent_channels, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(latent_channels),
@@ -58,21 +63,25 @@ class PixelShuffleDecoder(nn.Module):
             nn.PixelShuffle(upscale_factor=2),
             nn.BatchNorm2d(512),
             nn.GELU(),
+            ResidualBlock(512),
             # 16x16x512 -> 32x32x256
             nn.Conv2d(512, 1024, kernel_size=3, stride=1, padding=1),
             nn.PixelShuffle(upscale_factor=2),
             nn.BatchNorm2d(256),
             nn.GELU(),
+            ResidualBlock(256),
             # 32x32x256 -> 64x64x128
             nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
             nn.PixelShuffle(upscale_factor=2),
             nn.BatchNorm2d(128),
             nn.GELU(),
+            ResidualBlock(128),
             # 64x64x128 -> 128x128x64
             nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
             nn.PixelShuffle(upscale_factor=2),
             nn.BatchNorm2d(64),
             nn.GELU(),
+            ResidualBlock(64),
             # 128x128x64 -> 256x256x3
             nn.Conv2d(64, 12, kernel_size=3, stride=1, padding=1),
             nn.PixelShuffle(upscale_factor=2),
@@ -83,7 +92,7 @@ class PixelShuffleDecoder(nn.Module):
         return self.network(x)
 
 
-class PixelShuffleAE(pl.LightningModule):
+class PixelShuffleResidualAE(pl.LightningModule):
 
     def __init__(
         self,
