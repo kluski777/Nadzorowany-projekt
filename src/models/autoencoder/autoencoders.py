@@ -1,6 +1,6 @@
 import pytorch_lightning as pl
 
-from models.autoencoder.architectures import ResidualConvtAutoEncoder, ResK1UpsampleAutoEncoder, ResNet18AutoEncoder, PixelShuffleAE, PixelShuffleResidualAE
+from models.autoencoder.architectures import ResidualConvtAutoEncoder, ResK1UpsampleAutoEncoder, ResNet18AutoEncoder, PixelShuffleAE, PixelShuffleResidualAE, VAE
 
 
 def get_autoencoder(architecture: str) -> pl.LightningModule:
@@ -10,6 +10,7 @@ def get_autoencoder(architecture: str) -> pl.LightningModule:
         "resnet18_ae": ResNet18AutoEncoder,
         "pixelshuffle_ae": PixelShuffleAE,
         "pixelshuffle_residual_ae": PixelShuffleResidualAE,
+        "vae": VAE,
     }
 
     if architecture not in autoencoders:

@@ -3,6 +3,7 @@ from .residual_kernel_1 import ResK1UpsampleAutoEncoder
 from .resnet18_ae import ResNet18AutoEncoder
 from .pixelshuffle_ae import PixelShuffleAE
 from .pixelshuffle_residual_ae import PixelShuffleResidualAE
+from .vae import VAE
 
 __all__ = [
     "ResidualConvtAutoEncoder",
@@ -10,4 +11,5 @@ __all__ = [
     "ResNet18AutoEncoder",
     "PixelShuffleAE",
     "PixelShuffleResidualAE",
+    "VAE",
 ]

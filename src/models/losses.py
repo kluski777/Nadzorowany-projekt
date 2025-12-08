@@ -125,12 +125,52 @@ def combined_mse_bce_loss(
     return mse_weight * mse + bce_weight * bce
 
 
+def vae_bce_kl_loss(
+    recon_x: torch.Tensor,
+    x: torch.Tensor,
+    mu: torch.Tensor,
+    logvar: torch.Tensor,
+) -> Dict[str, torch.Tensor]:
+    """
+    Compute VAE loss = BCE Reconstruction Loss + KL Divergence.
+    
+    This loss function is designed for VAEs with sigmoid output activation.
+    KL weight is fixed at 1.0.
+    
+    Args:
+        recon_x: Reconstructed images
+        x: Original images
+        mu: Mean of latent distribution
+        logvar: Log variance of latent distribution
+    
+    Returns:
+        Dictionary with total loss and individual components:
+        - 'loss': Total loss (recon_loss + kl_loss)
+        - 'recon_loss': BCE reconstruction loss
+        - 'kl_loss': KL divergence loss
+    """
+    # Binary Cross Entropy reconstruction loss
+    recon_loss = F.binary_cross_entropy(recon_x, x, reduction='mean')
+    
+    # KL divergence: -0.5 * mean(1 + log(sigma^2) - mu^2 - sigma^2)
+    kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
+    
+    total_loss = recon_loss + kl_loss
+    
+    return {
+        'loss': total_loss,
+        'recon_loss': recon_loss,
+        'kl_loss': kl_loss
+    }
+
+
 def get_loss_function(loss_type: str) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
     """
     Get loss function by name.
 
     Args:
-        loss_type: One of 'ssim', 'ms_ssim', 'lpips', 'mse', 'mae', 'huber'
+        loss_type: One of 'ssim', 'ms_ssim', 'lpips', 'mse', 'mae', 'huber', 'bce', 
+                   'combined_mse_bce', 'combined_l1_bce_loss', 'vae_bce_kl'
 
     Returns:
         Loss function callable
@@ -148,6 +188,7 @@ def get_loss_function(loss_type: str) -> Callable[[torch.Tensor, torch.Tensor], 
         "bce": bce_loss,
         "combined_mse_bce": combined_mse_bce_loss,
         "combined_l1_bce_loss": combined_l1_bce_loss,
+        "vae_bce_kl": vae_bce_kl_loss,
     }
 
     if loss_type not in loss_functions:

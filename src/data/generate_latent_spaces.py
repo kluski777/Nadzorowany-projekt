@@ -73,13 +73,13 @@ def _process_single_image(
     image_tensor = image_tensor.unsqueeze(0).to(device)
 
     # Encode full image
-    latent_full = model.encoder(image_tensor)
+    latent_full = model.encode(image_tensor)
     latent_full = latent_full.squeeze(0).cpu().numpy()
 
     # Apply cut and encode cut image
     image_cut = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + image_idx)
     image_cut = image_cut.unsqueeze(0).to(device)
-    latent_cut = model.encoder(image_cut)
+    latent_cut = model.encode(image_cut)
     latent_cut = latent_cut.squeeze(0).cpu().numpy()
 
     return image_idx, latent_full, latent_cut

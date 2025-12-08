@@ -78,6 +78,12 @@ class ResidualConvtAutoEncoder(pl.LightningModule):
         latent_space = self.encoder(x)
         reconstructed_image = self.decoder(latent_space)
         return reconstructed_image
+    
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        return self.encoder(x)
+    
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        return self.decoder(z)
 
     def training_step(self, batch, batch_idx):
         images = batch["image"]
