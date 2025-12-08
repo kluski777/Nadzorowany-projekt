@@ -199,7 +199,6 @@ def cmd_train_autoencoder(args):
     config = load_config(args.config)
 
     train_autoencoder(
-        architecture=args.architecture,
         config=config,
         checkpoint_path=args.checkpoint,
     )
