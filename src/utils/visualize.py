@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import umap
 
-from .latent import load_latent_components
+from .latent import load_latent_spaces
 from .cluster import load_clusters
 
 
@@ -55,18 +55,18 @@ def visualize_results(
 
 def visualize_umap(input_dir: str):
     """Visualize UMAP embeddings."""
-    train_latent_spaces = load_latent_components(input_dir, "train")
-    val_latent_spaces = load_latent_components(input_dir, "val")
-    test_latent_spaces = load_latent_components(input_dir, "test")
-    latent_spaces = np.vstack((train_latent_spaces, val_latent_spaces, test_latent_spaces))
+    train_latent_components = load_latent_spaces(input_dir, "train")["full"]
+    val_latent_components = load_latent_spaces(input_dir, "val")["full"]
+    test_latent_components = load_latent_spaces(input_dir, "test")["full"]
+    latent_components = np.vstack((train_latent_components, val_latent_components, test_latent_components))
 
-    train_clusters = load_clusters("train")
-    val_clusters = load_clusters("val")
-    test_clusters = load_clusters("test")
-    clusters = np.concat((train_clusters, val_clusters, test_clusters))
+    train_clusters = load_clusters("train")["full"]
+    val_clusters = load_clusters("val")["full"]
+    test_clusters = load_clusters("test")["full"]
+    clusters = np.concatenate((train_clusters, val_clusters, test_clusters))
 
     reducer = umap.UMAP(n_components=2)
-    embedding = reducer.fit_transform(latent_spaces)
+    embedding = reducer.fit_transform(latent_components)
 
     plt.figure(figsize=(10, 8))
     plt.scatter(embedding[:, 0], embedding[:, 1], c=clusters, edgecolors="k", cmap="tab10")
