@@ -88,6 +88,12 @@ def parse_args():
         default="data/latent_components",
         help="Input directory containing files for UMAP visualization (default: data/latent_components)",
     )
+    parser_umap.add_argument(
+        "--output-dir",
+        type=str,
+        default="data/plots",
+        help="Output directory for UMAP visualization (default: data/plots)",
+    )
 
     parser_elbow = subparsers.add_parser("visualize_elbow", help="Visualize elbow plot for optimal k-means clusters")
     parser_elbow.add_argument(
@@ -249,6 +255,7 @@ def cmd_visualize_umap(args):
 
     visualize_umap(
         input_dir=args.input_dir,
+        output_dir=args.output_dir,
     )
 
     print("UMAP visualization completed")

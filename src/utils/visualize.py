@@ -56,8 +56,29 @@ def visualize_results(
     plt.show()
 
 
-def visualize_umap(input_dir: str):
-    """Visualize UMAP embeddings."""
+def visualize_umap(input_dir: str, output_dir: str = "data/plots"):
+    """
+    Visualize UMAP embeddings of latent components colored by cluster assignments.
+
+    This function loads latent components from all dataset splits (train, validation, test),
+    combines them, and applies UMAP dimensionality reduction to project them into 2D space.
+    The resulting embedding is visualized as a scatter plot where points are colored according
+    to their cluster assignments, providing insight into the clustering quality and data structure.
+
+    Args:
+        input_dir (str): Directory containing latent space files (.npz) for each split.
+                        Expected files: train.npz, val.npz, test.npz
+        output_dir (str): Directory where the visualization plot will be saved.
+                         Defaults to "data/plots"
+
+    Saves:
+        A PNG file named "umap-visualization.png" in the specified output directory,
+        showing the 2D UMAP projection with cluster-colored points.
+
+    Note:
+        Requires pre-generated clusters in "data/clusters" directory.
+        Uses random_state=42 for reproducible UMAP embeddings.
+    """
     train_latent_components = load_latent_spaces(input_dir, "train")["full"]
     val_latent_components = load_latent_spaces(input_dir, "val")["full"]
     test_latent_components = load_latent_spaces(input_dir, "test")["full"]
@@ -73,9 +94,16 @@ def visualize_umap(input_dir: str):
 
     plt.figure(figsize=(10, 8))
     plt.scatter(embedding[:, 0], embedding[:, 1], c=clusters, edgecolors="k", cmap="tab10")
-    plt.title("UMAP Visualization")
-    plt.xlabel("UMAP Dimension 1")
-    plt.ylabel("UMAP Dimension 2")
+    plt.title("UMAP Visualization", fontsize=14, fontweight="bold")
+    plt.xlabel("UMAP Dimension 1", fontsize=12)
+    plt.ylabel("UMAP Dimension 2", fontsize=12)
+
+    output_dir_path = Path(output_dir)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir_path / "umap-visualization.png"
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    print(f"UMAP visualization saved to {output_path}")
+
     plt.show()
 
 
