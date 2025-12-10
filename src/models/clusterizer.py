@@ -10,7 +10,7 @@ class Clusterizer:
     This class provides methods to fit, predict, and save/load KMeans models for unsupervised clustering.
     """
 
-    def __init__(self, n_clusters=8, max_iter=300, tol=1e-4, verbose=0):
+    def __init__(self, n_clusters=8, max_iter=300, tol=1e-4, random_state=None, verbose=0):
         """
         Initialize the Clusterizer with a KMeans model.
 
@@ -20,7 +20,9 @@ class Clusterizer:
             tol (float): Relative tolerance with regards to Frobenius norm of the difference in the cluster centers of two consecutive iterations to declare convergence. Defaults to 1e-4.
             verbose (int): Verbosity mode. Defaults to 0.
         """
-        self.model = KMeans(n_clusters=n_clusters, max_iter=max_iter, tol=tol, verbose=verbose)
+        self.model = KMeans(
+            n_clusters=n_clusters, max_iter=max_iter, tol=tol, random_state=random_state, verbose=verbose
+        )
 
     def fit(self, latent_components):
         """
@@ -68,6 +70,11 @@ class Clusterizer:
 
         full_path = os.path.join(output_dir, f"{filename}.pkl")
         joblib.dump(self, full_path, 3)
+
+    @property
+    def inertia_(self):
+        """Return the inertia of the fitted KMeans model."""
+        return self.model.inertia_
 
     @staticmethod
     def load(checkpoint_path: str = "data/models/clusterizer.pkl"):

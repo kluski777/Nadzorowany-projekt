@@ -89,6 +89,32 @@ def parse_args():
         help="Input directory containing files for UMAP visualization (default: data/latent_components)",
     )
 
+    parser_elbow = subparsers.add_parser("visualize_elbow", help="Visualize elbow plot for optimal k-means clusters")
+    parser_elbow.add_argument(
+        "--input-dir",
+        type=str,
+        default="data/latent_components",
+        help="Input directory containing latent components (default: data/latent_components)",
+    )
+    parser_elbow.add_argument(
+        "--min-clusters",
+        type=int,
+        default=2,
+        help="Minimum number of clusters to test (default: 2)",
+    )
+    parser_elbow.add_argument(
+        "--max-clusters",
+        type=int,
+        default=20,
+        help="Maximum number of clusters to test (default: 20)",
+    )
+    parser_elbow.add_argument(
+        "--output-dir",
+        type=str,
+        default="data/plots",
+        help="Output directory for elbow plot (default: data/plots)",
+    )
+
     parser_fit_feature_extractor = subparsers.add_parser(
         "fit_feature_extractor", help="Fit Feature Extractor on latent spaces"
     )
@@ -228,6 +254,21 @@ def cmd_visualize_umap(args):
     print("UMAP visualization completed")
 
 
+def cmd_visualize_elbow(args):
+    from utils import visualize_elbow_plot
+
+    print(f"Generating elbow plot from latent spaces in: {args.input_dir}")
+
+    visualize_elbow_plot(
+        input_dir=args.input_dir,
+        min_clusters=args.min_clusters,
+        max_clusters=args.max_clusters,
+        output_dir=args.output_dir,
+    )
+
+    print("Elbow plot visualization completed")
+
+
 def cmd_fit_feature_extractor(args):
     from training import fit_feature_extractor
 
@@ -297,6 +338,8 @@ def run():
             cmd_generate_latent_spaces(args)
         case "visualize_umap":
             cmd_visualize_umap(args)
+        case "visualize_elbow":
+            cmd_visualize_elbow(args)
         case "fit_feature_extractor":
             cmd_fit_feature_extractor(args)
         case "generate_latent_components":
