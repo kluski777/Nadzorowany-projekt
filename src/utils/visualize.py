@@ -93,7 +93,7 @@ def visualize_umap(input_dir: str, output_dir: str = "data/plots"):
     embedding = reducer.fit_transform(latent_components)
 
     plt.figure(figsize=(10, 8))
-    plt.scatter(embedding[:, 0], embedding[:, 1], c=clusters, edgecolors="k", cmap="tab10")
+    plt.scatter(embedding[:, 0], embedding[:, 1], c=clusters, edgecolors="k", cmap="tab20")
     plt.title("UMAP Visualization", fontsize=14, fontweight="bold")
     plt.xlabel("UMAP Dimension 1", fontsize=12)
     plt.ylabel("UMAP Dimension 2", fontsize=12)
