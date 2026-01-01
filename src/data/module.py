@@ -10,12 +10,11 @@ from torchvision import transforms
 from utils.cutting import apply_cut, apply_cut_reproducible
 
 
-class WikiArtStreamingDataset(IterableDataset):
+class WikiArtDataset(IterableDataset):
     def __init__(
         self,
         base_dataset,
         transform=None,
-        shuffle_buffer_size=2048,
         base_seed=42,
         shuffle_per_epoch=True,
         enable_cutting=False,
@@ -24,7 +23,6 @@ class WikiArtStreamingDataset(IterableDataset):
     ):
         self.base_dataset = base_dataset
         self.transform = transform
-        self.shuffle_buffer_size = shuffle_buffer_size
         self.base_seed = base_seed
         self.shuffle_per_epoch = shuffle_per_epoch
         self.epoch = 0
@@ -41,7 +39,7 @@ class WikiArtStreamingDataset(IterableDataset):
 
         if self.shuffle_per_epoch:
             epoch_seed = self.base_seed + self.epoch
-            dataset = dataset.shuffle(buffer_size=self.shuffle_buffer_size, seed=epoch_seed)
+            dataset = dataset.shuffle(seed=epoch_seed)
 
         sample_index = 0
         for item in dataset:
@@ -67,7 +65,6 @@ class WikiArtDataModule(pl.LightningDataModule):
         num_workers: int = 0,
         image_size: int = 256,
         data_dir: str = "/kaggle/working/data",
-        shuffle_buffer_size: int = 10000,
         seed: int = 42,
         splits_dir: str = "splits",
         enable_cutting: bool = False,
@@ -82,7 +79,6 @@ class WikiArtDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.image_size = image_size
         self.data_dir = Path(data_dir)
-        self.shuffle_buffer_size = shuffle_buffer_size
         self.seed = seed
         self.splits_dir = self.data_dir / splits_dir
         self.enable_cutting = enable_cutting
@@ -183,18 +179,16 @@ class WikiArtDataModule(pl.LightningDataModule):
         self.val_size = metadata["val_size"]
         self.test_size = metadata["test_size"]
 
-        base_streaming = load_dataset(
+        full_dataset = load_dataset(
             "Artificio/WikiArt_Full",
             cache_dir=str(self.data_dir),
             split="train",
-            streaming=True,
         )
 
-        train_streaming = base_streaming.take(self.train_size)
-        self.train_dataset = WikiArtStreamingDataset(
-            train_streaming,
+        train_subset = full_dataset.select(range(self.train_size))
+        self.train_dataset = WikiArtDataset(
+            train_subset,
             transform=self.transform,
-            shuffle_buffer_size=self.shuffle_buffer_size,
             base_seed=self.seed,
             shuffle_per_epoch=True,
             enable_cutting=self.enable_cutting,
@@ -202,11 +196,10 @@ class WikiArtDataModule(pl.LightningDataModule):
             cutting_seed=self.cutting_seed,
         )
 
-        val_streaming = base_streaming.skip(self.train_size).take(self.val_size)
-        self.val_dataset = WikiArtStreamingDataset(
-            val_streaming,
+        val_subset = full_dataset.select(range(self.train_size, self.train_size + self.val_size))
+        self.val_dataset = WikiArtDataset(
+            val_subset,
             transform=self.transform,
-            shuffle_buffer_size=self.shuffle_buffer_size,
             base_seed=self.seed,
             shuffle_per_epoch=False,
             enable_cutting=self.enable_cutting,
@@ -214,11 +207,10 @@ class WikiArtDataModule(pl.LightningDataModule):
             cutting_seed=self.cutting_seed,
         )
 
-        test_streaming = base_streaming.skip(self.train_size + self.val_size).take(self.test_size)
-        self.test_dataset = WikiArtStreamingDataset(
-            test_streaming,
+        test_subset = full_dataset.select(range(self.train_size + self.val_size, self.train_size + self.val_size + self.test_size))
+        self.test_dataset = WikiArtDataset(
+            test_subset,
             transform=self.transform,
-            shuffle_buffer_size=self.shuffle_buffer_size,
             base_seed=self.seed,
             shuffle_per_epoch=False,
             enable_cutting=self.enable_cutting,
@@ -228,9 +220,9 @@ class WikiArtDataModule(pl.LightningDataModule):
 
         print(f"\n{'=' * 60}")
         print(f"Dataset Setup Complete:")
-        print(f"  Training:   {self.train_size} samples (streaming)")
-        print(f"  Validation: {self.val_size} samples (streaming)")
-        print(f"  Test:       {self.test_size} samples (streaming)")
+        print(f"  Training:   {self.train_size} samples")
+        print(f"  Validation: {self.val_size} samples")
+        print(f"  Test:       {self.test_size} samples")
         print(f"{'=' * 60}\n")
 
     def train_dataloader(self):
@@ -239,6 +231,7 @@ class WikiArtDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
+            persistent_workers=True
         )
 
     def val_dataloader(self):
@@ -248,6 +241,7 @@ class WikiArtDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
             shuffle=False,
+            persistent_workers=True
         )
 
     def test_dataloader(self):
@@ -257,4 +251,5 @@ class WikiArtDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
             shuffle=False,
+            persistent_workers=True
         )

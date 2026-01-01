@@ -34,7 +34,6 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
         num_workers=config["data"]["num_workers"],
         image_size=config["data"]["image_size"],
         data_dir=config["data"]["data_dir"],
-        shuffle_buffer_size=config["data"]["shuffle_buffer_size"],
         seed=seed,
         splits_dir=config["data"]["splits_dir"],
         enable_cutting=cutting_config.get("enable", False),

@@ -32,7 +32,6 @@ def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: i
         num_workers=0,
         image_size=config["data"]["image_size"],
         data_dir=config["data"]["data_dir"],
-        shuffle_buffer_size=config["data"]["shuffle_buffer_size"],
         seed=seed,
         splits_dir=config["data"]["splits_dir"],
         enable_cutting=False,

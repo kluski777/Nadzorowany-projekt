@@ -1,6 +1,6 @@
 from .autoencoder import get_autoencoder
 from .losses import get_loss_function
-from .Clusterizer import Clusterizer
+from .clusterizer import Clusterizer
 from .FeatureExtractor import FeatureExtractor
 
 __all__ = [
