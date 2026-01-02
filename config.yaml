@@ -24,6 +24,9 @@ model:
   latent_channels: 128 # 8192
   learning_rate: 0.001
   loss_type: "mse" # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
+  # Bottleneck training settings
+  variant: "4k" # Options: "4k", "2k", "1k"
+  pretrained_checkpoint: "checkpoints/autoencoder-10k-CT-Residual-mse-latent8k-final-22301.ckpt"
 
 training:
   max_epochs: 150
