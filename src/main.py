@@ -46,6 +46,47 @@ def parse_args():
         help="Path to checkpoint file (.ckpt) to resume training from",
     )
 
+    parser_train_bottleneck = subparsers.add_parser(
+        "train_bottleneck", help="Train bottleneck layers for progressive latent space reduction"
+    )
+    parser_train_bottleneck.add_argument(
+        "--variant",
+        type=str,
+        required=True,
+        choices=["4k", "2k", "1k"],
+        help="Which bottleneck variant to train (4k, 2k, or 1k)",
+    )
+    parser_train_bottleneck.add_argument(
+        "--checkpoint",
+        type=str,
+        required=True,
+        help="Path to previous stage checkpoint (base 8k for 4k, 4k for 2k, 2k for 1k)",
+    )
+    parser_train_bottleneck.add_argument(
+        "--learning_rate",
+        type=float,
+        default=1e-3,
+        help="Learning rate (default: 1e-3)",
+    )
+    parser_train_bottleneck.add_argument(
+        "--batch_size",
+        type=int,
+        default=64,
+        help="Batch size (default: 64)",
+    )
+    parser_train_bottleneck.add_argument(
+        "--max_epochs",
+        type=int,
+        default=150,
+        help="Maximum epochs (default: 150)",
+    )
+    parser_train_bottleneck.add_argument(
+        "--loss_type",
+        type=str,
+        default="mse",
+        help="Loss type (default: mse)",
+    )
+
     parser_generate_latent = subparsers.add_parser(
         "generate_latent_spaces",
         help="Generate latent spaces for images in dataset splits",
@@ -236,6 +277,12 @@ def cmd_train_autoencoder(args):
     )
 
 
+def cmd_train_bottleneck(args):
+    from training import train_bottleneck
+
+    train_bottleneck(args)
+
+
 def cmd_generate_latent_spaces(args):
     from data.generate_latent_spaces import generate_latent_spaces
 
@@ -341,6 +388,8 @@ def run():
             cmd_generate_splits(args)
         case "train_autoencoder":
             cmd_train_autoencoder(args)
+        case "train_bottleneck":
+            cmd_train_bottleneck(args)
         case "generate_latent_spaces":
             cmd_generate_latent_spaces(args)
         case "visualize_umap":

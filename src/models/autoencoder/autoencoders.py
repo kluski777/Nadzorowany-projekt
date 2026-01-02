@@ -7,6 +7,9 @@ from models.autoencoder.architectures import (
     PixelShuffleAE,
     PixelShuffleResidualAE,
     VAE,
+    BottleneckAE4k,
+    BottleneckAE2k,
+    BottleneckAE1k,
 )
 
 
@@ -18,6 +21,9 @@ def get_autoencoder(architecture: str) -> pl.LightningModule:
         "pixelshuffle_ae": PixelShuffleAE,
         "pixelshuffle_residual_ae": PixelShuffleResidualAE,
         "vae": VAE,
+        "bottleneck_4k": BottleneckAE4k,
+        "bottleneck_2k": BottleneckAE2k,
+        "bottleneck_1k": BottleneckAE1k,
     }
 
     if architecture not in autoencoders:
