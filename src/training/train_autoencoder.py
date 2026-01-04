@@ -1,5 +1,6 @@
 import os
 
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
@@ -11,6 +12,12 @@ from utils import visualize_results
 from callbacks import ReconstructionLogger, EpochShuffleCallback, CometModelUploadCallback
 
 load_dotenv()
+
+
+def is_weights_only_checkpoint(checkpoint_path: str) -> bool:
+    """Check if checkpoint is weights-only (no optimizer state)."""
+    ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    return "optimizer_states" not in ckpt
 
 
 def train_autoencoder(config: dict, checkpoint_path: str = None):
@@ -112,8 +119,14 @@ def train_autoencoder(config: dict, checkpoint_path: str = None):
 
     print("Starting training...")
     if checkpoint_path:
-        print(f"Resuming training from checkpoint: {checkpoint_path}")
-        trainer.fit(model, data_module, ckpt_path=checkpoint_path)
+        if is_weights_only_checkpoint(checkpoint_path):
+            print(f"Loading pretrained weights from: {checkpoint_path}")
+            ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+            model.load_state_dict(ckpt["state_dict"])
+            trainer.fit(model, data_module)
+        else:
+            print(f"Resuming training from checkpoint: {checkpoint_path}")
+            trainer.fit(model, data_module, ckpt_path=checkpoint_path)
     else:
         trainer.fit(model, data_module)
 

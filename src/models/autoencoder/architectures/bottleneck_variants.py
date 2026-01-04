@@ -376,3 +376,90 @@ class BottleneckAE1k(pl.LightningModule):
         self.decompressor_64_128.eval()
         self.compressor_64_32.eval()
         self.decompressor_32_64.eval()
+
+
+class FinalAutoEncoder2k(pl.LightningModule):
+    """
+    Final unified autoencoder with 2048 latent dimensions (32 channels x 8x8).
+    
+    This is a standalone model that contains all components in a single architecture,
+    designed to be loaded from a single merged checkpoint file.
+    """
+
+    def __init__(
+        self,
+        input_channels: int = 3,
+        latent_channels: int = 128,
+        learning_rate: float = 1e-3,
+        scheduler_patience: int = 5,
+        scheduler_factor: float = 0.5,
+        loss_type: str = "mse",
+    ):
+        super().__init__()
+        self.save_hyperparameters()
+
+        self.learning_rate = learning_rate
+        self.scheduler_patience = scheduler_patience
+        self.scheduler_factor = scheduler_factor
+        self.loss_type = loss_type
+        self.loss_fn = get_loss_function(loss_type)
+
+        # Import encoder/decoder classes
+        from models.autoencoder.architectures.residual_convt import Encoder, Decoder
+
+        # All components defined directly (no checkpoint loading)
+        self.encoder = Encoder(input_channels=input_channels, latent_channels=128)
+        self.decoder = Decoder(latent_channels=128, output_channels=input_channels)
+        self.compressor_128_64 = Compressor(128, 64)
+        self.decompressor_64_128 = Decompressor(64, 128)
+        self.compressor_64_32 = Compressor(64, 32)
+        self.decompressor_32_64 = Decompressor(32, 64)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Encode: 256x256x3 -> 8x8x128 -> 8x8x64 -> 8x8x32
+        latent = self.encoder(x)
+        latent = self.compressor_128_64(latent)
+        compressed = self.compressor_64_32(latent)
+        # Decode: 8x8x32 -> 8x8x64 -> 8x8x128 -> 256x256x3
+        decompressed = self.decompressor_32_64(compressed)
+        decompressed = self.decompressor_64_128(decompressed)
+        return self.decoder(decompressed)
+
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        """Full encoding to 2k latent space (8x8x32)."""
+        latent = self.encoder(x)
+        latent = self.compressor_128_64(latent)
+        return self.compressor_64_32(latent)
+
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        """Full decoding from 2k latent space."""
+        decompressed = self.decompressor_32_64(z)
+        decompressed = self.decompressor_64_128(decompressed)
+        return self.decoder(decompressed)
+
+    def training_step(self, batch, batch_idx):
+        images = batch["image"]
+        reconstructed = self(images)
+        loss = self.loss_fn(reconstructed, images)
+        self.log("train_loss", loss, prog_bar=True, sync_dist=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        images = batch["image"]
+        reconstructed = self(images)
+        loss = self.loss_fn(reconstructed, images)
+        self.log("val_loss", loss, prog_bar=True, sync_dist=True)
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode="min",
+            factor=self.scheduler_factor,
+            patience=self.scheduler_patience,
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {"scheduler": scheduler, "monitor": "val_loss"},
+        }

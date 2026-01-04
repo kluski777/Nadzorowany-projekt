@@ -10,6 +10,7 @@ from models.autoencoder.architectures import (
     BottleneckAE4k,
     BottleneckAE2k,
     BottleneckAE1k,
+    FinalAutoEncoder2k,
 )
 
 
@@ -24,6 +25,7 @@ def get_autoencoder(architecture: str) -> pl.LightningModule:
         "bottleneck_4k": BottleneckAE4k,
         "bottleneck_2k": BottleneckAE2k,
         "bottleneck_1k": BottleneckAE1k,
+        "final_2k": FinalAutoEncoder2k,
     }
 
     if architecture not in autoencoders:

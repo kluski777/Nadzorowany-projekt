@@ -19,7 +19,7 @@ cutting:
   seed: null # null to use experiment.seed
 
 model:
-  architecture: "res_convt"
+  architecture: "final_2k"
   input_channels: 3
   latent_channels: 128 # 8192
   learning_rate: 0.001
