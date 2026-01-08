@@ -93,10 +93,16 @@ def parse_args():
 
     parser_umap = subparsers.add_parser("visualize_umap", help="Visualize UMAP embeddings")
     parser_umap.add_argument(
-        "--input-dir",
+        "--latent-components-input-dir",
         type=str,
         default="data/latent_components",
-        help="Input directory containing files for UMAP visualization (default: data/latent_components)",
+        help="Input directory containing latent components for UMAP visualization (default: data/latent_components)",
+    )
+    parser_umap.add_argument(
+        "--clusters-input-dir",
+        type=str,
+        default="data/clusters",
+        help="Input directory containing clusters for UMAP visualization (default: data/clusters)",
     )
     parser_umap.add_argument(
         "--output-dir",
@@ -270,10 +276,11 @@ def cmd_generate_latent_spaces(args):
 def cmd_visualize_umap(args):
     from utils import visualize_umap
 
-    print(f"Visualizing UMAP embeddings from: {args.input_dir}")
+    print(f"Visualizing UMAP embeddings from: {args.latent_components_input_dir} and {args.clusters_input_dir}")
 
     visualize_umap(
-        input_dir=args.input_dir,
+        latent_components_input_dir=args.latent_components_input_dir,
+        clusters_input_dir=args.clusters_input_dir,
         output_dir=args.output_dir,
     )
 

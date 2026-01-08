@@ -56,7 +56,7 @@ def visualize_results(
     plt.show()
 
 
-def visualize_umap(input_dir: str, output_dir: str = "data/plots"):
+def visualize_umap(latent_components_input_dir: str, clusters_input_dir: str, output_dir: str = "data/plots"):
     """
     Visualize UMAP embeddings of latent components colored by cluster assignments.
 
@@ -66,8 +66,8 @@ def visualize_umap(input_dir: str, output_dir: str = "data/plots"):
     to their cluster assignments, providing insight into the clustering quality and data structure.
 
     Args:
-        input_dir (str): Directory containing latent space files (.npz) for each split.
-                        Expected files: train.npz, val.npz, test.npz
+        latent_components_input_dir (str): Directory containing latent spaces for all splits.
+        clusters_input_dir (str): Directory containing cluster assignments for all splits.
         output_dir (str): Directory where the visualization plot will be saved.
                          Defaults to "data/plots"
 
@@ -79,14 +79,14 @@ def visualize_umap(input_dir: str, output_dir: str = "data/plots"):
         Requires pre-generated clusters in "data/clusters" directory.
         Uses random_state=42 for reproducible UMAP embeddings.
     """
-    train_latent_components = load_latent_spaces(input_dir, "train")["full"]
-    val_latent_components = load_latent_spaces(input_dir, "val")["full"]
-    test_latent_components = load_latent_spaces(input_dir, "test")["full"]
+    train_latent_components = load_latent_spaces(latent_components_input_dir, "train")["full"]
+    val_latent_components = load_latent_spaces(latent_components_input_dir, "val")["full"]
+    test_latent_components = load_latent_spaces(latent_components_input_dir, "test")["full"]
     latent_components = np.vstack((train_latent_components, val_latent_components, test_latent_components))
 
-    train_clusters = load_clusters("train")["full"]
-    val_clusters = load_clusters("val")["full"]
-    test_clusters = load_clusters("test")["full"]
+    train_clusters = load_clusters("train", clusters_input_dir)["full"]
+    val_clusters = load_clusters("val", clusters_input_dir)["full"]
+    test_clusters = load_clusters("test", clusters_input_dir)["full"]
     clusters = np.concatenate((train_clusters, val_clusters, test_clusters))
 
     reducer = umap.UMAP(n_components=2, random_state=42)
