@@ -34,6 +34,7 @@ class InferencePipeline:
     SCALER_PATH = "data/models/scaler.pkl"
     INPAINTER_DIR = "checkpoints"
     INPAINTER_PATTERN = "inpainter-cluster{cluster_id}-final.ckpt"
+    COMMON_INPAINTER_PATH = "checkpoints/inpainter-common-final.ckpt"
 
     def __init__(self, device: Optional[str] = None):
         """
@@ -124,28 +125,39 @@ class InferencePipeline:
         
         return int(cluster_id)
 
-    def load_inpainter(self, cluster_id: int) -> ConvLatentInpainter:
+    def load_inpainter(self, cluster_id: int) -> tuple[ConvLatentInpainter, bool]:
         """
         Load the inpainter model for a specific cluster.
         
+        Falls back to the common inpainter if cluster-specific one is not available.
         Note: Inpainters are loaded fresh each time (not cached) to save memory.
         
         Args:
             cluster_id: The cluster ID
             
         Returns:
-            Loaded ConvLatentInpainter model
+            Tuple of (ConvLatentInpainter model, is_common: bool)
         """
+        # Try cluster-specific inpainter first
         inpainter_path = Path(self.INPAINTER_DIR) / self.INPAINTER_PATTERN.format(
             cluster_id=cluster_id
         )
         
+        is_common = False
         if not inpainter_path.exists():
-            raise FileNotFoundError(
-                f"Inpainter model not found for cluster {cluster_id}: {inpainter_path}"
-            )
+            # Fall back to common inpainter
+            common_path = Path(self.COMMON_INPAINTER_PATH)
+            if not common_path.exists():
+                raise FileNotFoundError(
+                    f"No inpainter found for cluster {cluster_id} ({inpainter_path}) "
+                    f"and no common inpainter available ({common_path}). "
+                    "Train either a cluster-specific or common inpainter first."
+                )
+            inpainter_path = common_path
+            is_common = True
+            print(f"  Cluster {cluster_id} inpainter not found, using common inpainter")
         
-        print(f"  Loading inpainter for cluster {cluster_id} from: {inpainter_path}")
+        print(f"  Loading inpainter from: {inpainter_path}")
         inpainter = ConvLatentInpainter.load_from_checkpoint(
             str(inpainter_path),
             map_location=self.device,
@@ -153,7 +165,7 @@ class InferencePipeline:
         inpainter.eval()
         inpainter.to(self.device)
         
-        return inpainter
+        return inpainter, is_common
 
     def postprocess(self, tensor: torch.Tensor) -> Image.Image:
         """
@@ -173,7 +185,7 @@ class InferencePipeline:
         return Image.fromarray(array)
 
     @torch.inference_mode()
-    def inpaint(self, image: Image.Image) -> tuple[Image.Image, int]:
+    def inpaint(self, image: Image.Image) -> tuple[Image.Image, int, bool]:
         """
         Run the full inpainting pipeline.
         
@@ -181,7 +193,7 @@ class InferencePipeline:
             image: Input masked image (PIL Image)
             
         Returns:
-            Tuple of (reconstructed PIL Image, cluster_id)
+            Tuple of (reconstructed PIL Image, cluster_id, used_common_inpainter)
         """
         input_tensor = self.preprocess(image)
         latent = self.autoencoder.encode(input_tensor)
@@ -189,7 +201,7 @@ class InferencePipeline:
         cluster_id = self.predict_cluster(latent)
         print(f"  Predicted cluster: {cluster_id}")
         
-        inpainter = self.load_inpainter(cluster_id)
+        inpainter, is_common = self.load_inpainter(cluster_id)
         inpainted_latent = inpainter(latent)
         
         output_tensor = self.autoencoder.decode(inpainted_latent)
@@ -200,4 +212,4 @@ class InferencePipeline:
         if self.device.type == "cuda":
             torch.cuda.empty_cache()
         
-        return output_image, cluster_id
+        return output_image, cluster_id, is_common

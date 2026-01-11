@@ -234,7 +234,7 @@ def parse_args():
     )
 
     parser_train_inpainter = subparsers.add_parser(
-        "train_inpainter", help="Train latent space inpainter for a specific cluster"
+        "train_inpainter", help="Train latent space inpainter for a specific cluster or a common inpainter"
     )
     parser_train_inpainter.add_argument(
         "--config",
@@ -245,8 +245,9 @@ def parse_args():
     parser_train_inpainter.add_argument(
         "--cluster-id",
         type=int,
-        required=True,
-        help="Cluster ID to train the inpainter for",
+        default=None,
+        help="Cluster ID to train the inpainter for. If not provided, trains a common "
+             "inpainter on all data (used as fallback when cluster-specific inpainter is missing)",
     )
     parser_train_inpainter.add_argument(
         "--latent-dir",
@@ -410,7 +411,10 @@ def cmd_train_inpainter(args):
     print(f"Loading configuration from: {args.config}")
     config = load_config(args.config)
 
-    print(f"Training inpainter for cluster {args.cluster_id}")
+    if args.cluster_id is None:
+        print("Training common inpainter (all clusters)")
+    else:
+        print(f"Training inpainter for cluster {args.cluster_id}")
 
     train_inpainter(
         config=config,

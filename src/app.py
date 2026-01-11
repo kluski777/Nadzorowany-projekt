@@ -51,8 +51,9 @@ def inpaint():
         
         # Run inpainting pipeline
         print("Running inpainting pipeline...")
-        result_image, cluster_id = pipeline.inpaint(image)
-        print(f"Inpainting complete! Used cluster {cluster_id}")
+        result_image, cluster_id, used_common = pipeline.inpaint(image)
+        inpainter_type = "common" if used_common else f"cluster {cluster_id}"
+        print(f"Inpainting complete! Used {inpainter_type} inpainter")
         
         # Convert result to bytes
         img_bytes = io.BytesIO()

@@ -138,6 +138,22 @@ This creates npz files with an additional `cluster` field containing cluster IDs
 
 ### Step 9: Train Inpainter Models
 
+You can train either cluster-specific inpainters or a common inpainter that works for all clusters.
+
+#### Option A: Train a Common Inpainter (Recommended for starting)
+
+Train a single inpainter on all data (used as fallback when cluster-specific inpainter is missing):
+
+```bash
+uv run src/main.py train_inpainter \
+    --config config.yaml \
+    --latent-dir data/latent_spaces_clustered
+```
+
+This saves `checkpoints/inpainter-common-final.ckpt`.
+
+#### Option B: Train Cluster-Specific Inpainters
+
 Train a separate inpainter model for each cluster:
 
 ```bash
@@ -158,6 +174,8 @@ uv run src/main.py train_inpainter \
 
 Each model is saved as `checkpoints/inpainter-cluster{id}-*.ckpt`.
 
+**Note:** At inference time, if a cluster-specific inpainter is not available, the pipeline automatically falls back to the common inpainter (`checkpoints/inpainter-common-final.ckpt`).
+
 ## Available Commands
 
 ### Data Preparation
@@ -166,7 +184,7 @@ Each model is saved as `checkpoints/inpainter-cluster{id}-*.ckpt`.
 ### Model Training
 - `train_autoencoder` - Train autoencoder model
 - `train_bottleneck` - Train bottleneck layers for progressive reduction
-- `train_inpainter` - Train inpainter model for a specific cluster
+- `train_inpainter` - Train inpainter model (common or cluster-specific)
 
 ### Feature Extraction & Clustering
 - `fit_feature_extractor` - Fit PCA feature extractor

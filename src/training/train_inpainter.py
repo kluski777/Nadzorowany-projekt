@@ -14,16 +14,18 @@ load_dotenv()
 
 def train_inpainter(
     config: dict,
-    cluster_id: int,
+    cluster_id: Optional[int] = None,
     latent_dir: str = "data/latent_spaces",
     checkpoint_path: Optional[str] = None,
 ):
     """
-    Train a ConvLatentInpainter model for a specific cluster.
+    Train a ConvLatentInpainter model.
     
     Args:
         config: Configuration dictionary
-        cluster_id: The cluster ID to train the model for
+        cluster_id: The cluster ID to train the model for. If None, trains a common
+                   inpainter on all data (used as fallback when cluster-specific 
+                   inpainter is not available).
         latent_dir: Directory containing the latent space npz files
         checkpoint_path: Optional path to checkpoint file (.ckpt) to resume training from
     """
@@ -33,10 +35,14 @@ def train_inpainter(
     # Get inpainter-specific config
     inpainter_config = config.get("inpainter", {})
     
+    # Determine model name based on cluster_id
+    is_common = cluster_id is None
+    model_name = "common" if is_common else f"cluster{cluster_id}"
+    
     # Setup data module
     data_module = LatentInpainterDataModule(
         latent_dir=latent_dir,
-        cluster_id=cluster_id,
+        cluster_id=cluster_id,  # None = use all data
         batch_size=inpainter_config.get("batch_size", 64),
         num_workers=config["data"].get("num_workers", 4),
     )
@@ -56,7 +62,7 @@ def train_inpainter(
     # Callbacks
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints",
-        filename=f"inpainter-cluster{cluster_id}-{{epoch:02d}}-{{val_loss:.6f}}",
+        filename=f"inpainter-{model_name}-{{epoch:02d}}-{{val_loss:.6f}}",
         monitor="val_loss",
         mode="min",
         save_top_k=3,
@@ -76,11 +82,12 @@ def train_inpainter(
             api_key=comet_api_key,
             project=os.getenv("COMET_PROJECT_NAME"),
             workspace=os.getenv("COMET_WORKSPACE"),
-            name=f"{config['experiment']['name']}-inpainter-cluster{cluster_id}",
+            name=f"{config['experiment']['name']}-inpainter-{model_name}",
         )
         logger.log_hyperparams({
             **config,
             "cluster_id": cluster_id,
+            "is_common_inpainter": is_common,
             "latent_dir": latent_dir,
         })
     else:
@@ -102,7 +109,10 @@ def train_inpainter(
 
     # Train
     print(f"\n{'=' * 60}")
-    print(f"Training Inpainter for Cluster {cluster_id}")
+    if is_common:
+        print("Training Common Inpainter (all clusters)")
+    else:
+        print(f"Training Inpainter for Cluster {cluster_id}")
     print(f"{'=' * 60}\n")
 
     if checkpoint_path:
@@ -115,25 +125,26 @@ def train_inpainter(
     print(f"Best model path: {checkpoint_callback.best_model_path}")
 
     # Save final model
-    final_model_path = f"checkpoints/inpainter-cluster{cluster_id}-final.ckpt"
+    final_model_path = f"checkpoints/inpainter-{model_name}-final.ckpt"
     trainer.save_checkpoint(final_model_path)
     print(f"Final model saved to: {final_model_path}")
 
     # Log to Comet if available
     if logger:
         logger.experiment.log_model(
-            name=f"inpainter-cluster{cluster_id}-final",
+            name=f"inpainter-{model_name}-final",
             file_or_folder=final_model_path,
             metadata={
                 "model_type": "ConvLatentInpainter",
                 "cluster_id": cluster_id,
+                "is_common_inpainter": is_common,
                 "latent_channels": inpainter_config.get("latent_channels", config["model"]["latent_channels"]),
                 "hidden_channels": inpainter_config.get("hidden_channels", 256),
                 "final_epoch": trainer.current_epoch,
                 "best_val_loss": float(checkpoint_callback.best_model_score) if checkpoint_callback.best_model_score else None,
             },
         )
-        print(f"Model logged to Comet ML: inpainter-cluster{cluster_id}-final")
+        print(f"Model logged to Comet ML: inpainter-{model_name}-final")
         logger.experiment.end()
 
     return checkpoint_callback.best_model_path
