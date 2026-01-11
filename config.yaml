@@ -42,7 +42,7 @@ experiment:
   recon_log_every_n_epochs: 5
 
 inpainter:
-  latent_channels: 128 # Should match model.latent_channels
+  latent_channels: 32 # Should match model.latent_channels
   hidden_channels: 256
   num_blocks: 4
   learning_rate: 0.001
