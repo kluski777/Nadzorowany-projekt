@@ -6,8 +6,9 @@ import pytorch_lightning as pl
 from datasets import Dataset, load_dataset
 from tqdm import tqdm
 import torch.nn as nn
+import joblib
 
-from models import get_autoencoder
+from models import get_autoencoder, FeatureExtractor, Clusterizer
 from data.module import WikiArtDataModule
 from utils import load_config
 from utils.cutting import apply_cut_reproducible
@@ -121,30 +122,60 @@ def _process_split(
     return image_indices, latent_full_list, latent_cut_list, error_count
 
 
+def _compute_clusters(
+    latent_full_list: List[np.ndarray],
+    feature_extractor: FeatureExtractor,
+    clusterizer: Clusterizer,
+    scaler,
+) -> np.ndarray:
+    """Compute cluster assignments for latent spaces using feature extractor and clusterizer."""
+    # Stack latent spaces: [num_images, latent_channels, 8, 8]
+    full_array = np.stack(latent_full_list, axis=0)
+    # Flatten for feature extraction: [num_images, latent_channels * 8 * 8]
+    full_flat = full_array.reshape(full_array.shape[0], -1)
+    # Extract features (PCA)
+    latent_components = feature_extractor.transform(full_flat)
+    # Scale features
+    latent_components_scaled = scaler.transform(latent_components)
+    # Predict clusters
+    clusters = clusterizer.predict(latent_components_scaled)
+    return clusters
+
+
 def _save_split_latent_spaces(
     split_name: str,
     image_indices: List[int],
     latent_full_list: List[np.ndarray],
     latent_cut_list: List[np.ndarray],
     output_path: Path,
+    clusters: Optional[np.ndarray] = None,
 ) -> None:
     """Save latent spaces for a split as a compressed numpy file."""
     print(f"Saving {len(image_indices)} latent spaces to {split_name}.npz...")
 
     # Stack arrays: [num_images, latent_channels, 8, 8]
     indices_array = np.array(image_indices, dtype=np.int64)
-    full_array = np.stack(latent_full_list, axis=0)
-    cut_array = np.stack(latent_cut_list, axis=0)
+    target_latent_array = np.stack(latent_full_list, axis=0)
+    masked_latent_array = np.stack(latent_cut_list, axis=0)
 
     output_file = output_path / f"{split_name}.npz"
-    np.savez_compressed(
-        output_file,
-        indices=indices_array,
-        full=full_array,
-        cut=cut_array,
-    )
+    
+    # Build save dict - clusters are optional
+    save_dict = {
+        "indices": indices_array,
+        "target_latent": target_latent_array,
+        "masked_latent": masked_latent_array,
+    }
+    if clusters is not None:
+        save_dict["cluster"] = clusters
+    
+    np.savez_compressed(output_file, **save_dict)
     print(f"Saved {output_file} ({output_file.stat().st_size / 1024 / 1024:.2f} MB)")
-    print(f"  Shape - full: {full_array.shape}, cut: {cut_array.shape}")
+    print(f"  Shape - target_latent: {target_latent_array.shape}, masked_latent: {masked_latent_array.shape}")
+    if clusters is not None:
+        print(f"  Clusters: {len(np.unique(clusters))} unique clusters")
+    else:
+        print("  Clusters: not included (no clusterizer provided)")
 
 
 def generate_latent_spaces(
@@ -153,7 +184,25 @@ def generate_latent_spaces(
     output_dir: str = "data/latent_spaces",
     cutting_seed: Optional[int] = None,
     batch_size: int = 1,
+    feature_extractor_checkpoint: Optional[str] = None,
+    clusterizer_checkpoint: Optional[str] = None,
 ):
+    """
+    Generate latent spaces for images in dataset splits.
+    
+    Args:
+        config_path: Path to configuration YAML file
+        checkpoint_path: Path to autoencoder checkpoint
+        output_dir: Output directory for latent spaces
+        cutting_seed: Seed for cutting operations
+        batch_size: Batch size for processing
+        feature_extractor_checkpoint: Optional path to feature extractor for cluster assignment
+        clusterizer_checkpoint: Optional path to clusterizer for cluster assignment
+        
+    If feature_extractor_checkpoint and clusterizer_checkpoint are provided,
+    cluster labels will be computed and saved. Otherwise, latent spaces are
+    saved without cluster information.
+    """
     print(f"Loading configuration from: {config_path}")
     config = load_config(config_path)
 
@@ -172,6 +221,24 @@ def generate_latent_spaces(
     print(f"Using device: {device}")
     print(f"Loading model from checkpoint: {checkpoint_path}")
     model = _load_model(checkpoint_path, config, device)
+
+    # Load feature extractor and clusterizer for cluster assignment (optional)
+    enable_clustering = feature_extractor_checkpoint is not None and clusterizer_checkpoint is not None
+    feature_extractor = None
+    clusterizer = None
+    scaler = None
+    
+    if enable_clustering:
+        print(f"Loading feature extractor from: {feature_extractor_checkpoint}")
+        feature_extractor = FeatureExtractor.load(feature_extractor_checkpoint)
+        print(f"Loading clusterizer from: {clusterizer_checkpoint}")
+        clusterizer = Clusterizer.load(clusterizer_checkpoint)
+        # Load scaler (saved alongside clusterizer)
+        scaler_path = Path(clusterizer_checkpoint).parent / "scaler.pkl"
+        print(f"Loading scaler from: {scaler_path}")
+        scaler = joblib.load(scaler_path)
+    else:
+        print("No feature extractor/clusterizer provided - generating latent spaces without cluster labels")
 
     print("Loading full dataset...")
     full_dataset = load_dataset(
@@ -200,7 +267,15 @@ def generate_latent_spaces(
             split_name, indices, full_dataset, data_module, model, device, cutting_seed
         )
 
-        _save_split_latent_spaces(split_name, image_indices, latent_full_list, latent_cut_list, output_path)
+        # Compute cluster assignments if clustering is enabled
+        clusters = None
+        if enable_clustering:
+            print("Computing cluster assignments...")
+            clusters = _compute_clusters(latent_full_list, feature_extractor, clusterizer, scaler)
+
+        _save_split_latent_spaces(
+            split_name, image_indices, latent_full_list, latent_cut_list, output_path, clusters
+        )
 
         total_processed += len(image_indices)
         total_errors += split_errors
@@ -213,4 +288,8 @@ def generate_latent_spaces(
     print(f"  Total processed: {total_processed}")
     print(f"  Total errors: {total_errors}")
     print(f"  Output directory: {output_path}")
+    if enable_clustering:
+        print("  Cluster labels: included")
+    else:
+        print("  Cluster labels: not included")
     print(f"{'=' * 60}\n")

@@ -36,7 +36,16 @@ training:
   lr_scheduler_factor: 0.5
 
 experiment:
-  name: "autoencoder-10k-CT-Residual-mse-latent8k-to-latent4k"
+  name: "latent-space-inpainter-ae-latent2k"
   seed: 42 # Seed for training reproducibility
   visualization_samples: 8
   recon_log_every_n_epochs: 5
+
+inpainter:
+  latent_channels: 128 # Should match model.latent_channels
+  hidden_channels: 256
+  num_blocks: 4
+  learning_rate: 0.001
+  loss_type: "mse" # Options: "mse", "mae", "huber"
+  batch_size: 64
+  max_epochs: 100

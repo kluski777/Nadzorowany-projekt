@@ -90,6 +90,20 @@ def parse_args():
         default=1,
         help="Batch size for processing (default: 1)",
     )
+    parser_generate_latent.add_argument(
+        "--feature-extractor-checkpoint",
+        type=str,
+        default=None,
+        help="Optional path to feature extractor checkpoint (.pkl) for cluster assignment. "
+             "If not provided, latent spaces will be saved without cluster labels.",
+    )
+    parser_generate_latent.add_argument(
+        "--clusterizer-checkpoint",
+        type=str,
+        default=None,
+        help="Optional path to clusterizer checkpoint (.pkl) for cluster assignment. "
+             "Both --feature-extractor-checkpoint and --clusterizer-checkpoint must be provided for clustering.",
+    )
 
     parser_umap = subparsers.add_parser("visualize_umap", help="Visualize UMAP embeddings")
     parser_umap.add_argument(
@@ -219,6 +233,34 @@ def parse_args():
         help="Path to checkpoint file (.pkl) to load model from",
     )
 
+    parser_train_inpainter = subparsers.add_parser(
+        "train_inpainter", help="Train latent space inpainter for a specific cluster"
+    )
+    parser_train_inpainter.add_argument(
+        "--config",
+        type=str,
+        default="config.yaml",
+        help="Path to configuration YAML file (default: config.yaml)",
+    )
+    parser_train_inpainter.add_argument(
+        "--cluster-id",
+        type=int,
+        required=True,
+        help="Cluster ID to train the inpainter for",
+    )
+    parser_train_inpainter.add_argument(
+        "--latent-dir",
+        type=str,
+        default="data/latent_spaces",
+        help="Directory containing latent space npz files (default: data/latent_spaces)",
+    )
+    parser_train_inpainter.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        help="Path to checkpoint file (.ckpt) to resume training from",
+    )
+
     return parser.parse_args(), parser
 
 
@@ -270,6 +312,8 @@ def cmd_generate_latent_spaces(args):
         output_dir=args.output_dir,
         cutting_seed=args.cutting_seed,
         batch_size=args.batch_size,
+        feature_extractor_checkpoint=args.feature_extractor_checkpoint,
+        clusterizer_checkpoint=args.clusterizer_checkpoint,
     )
 
 
@@ -360,6 +404,22 @@ def cmd_generate_clusters(args):
     print("Clusters have been generated")
 
 
+def cmd_train_inpainter(args):
+    from training import train_inpainter
+
+    print(f"Loading configuration from: {args.config}")
+    config = load_config(args.config)
+
+    print(f"Training inpainter for cluster {args.cluster_id}")
+
+    train_inpainter(
+        config=config,
+        cluster_id=args.cluster_id,
+        latent_dir=args.latent_dir,
+        checkpoint_path=args.checkpoint,
+    )
+
+
 def run():
     args, parser = parse_args()
     match args.command:
@@ -383,6 +443,8 @@ def run():
             cmd_fit_clusterizer(args)
         case "generate_clusters":
             cmd_generate_clusters(args)
+        case "train_inpainter":
+            cmd_train_inpainter(args)
         case _:
             parser.print_help()
 
