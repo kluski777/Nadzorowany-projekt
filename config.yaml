@@ -21,7 +21,7 @@ cutting:
 model:
   architecture: "final_2k"
   input_channels: 3
-  latent_channels: 128 # 8192
+  latent_channels: 32 # 8192
   learning_rate: 0.001
   loss_type: "mse" # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
   # Bottleneck training settings

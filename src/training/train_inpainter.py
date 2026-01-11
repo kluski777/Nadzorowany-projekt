@@ -76,7 +76,7 @@ def train_inpainter(
             api_key=comet_api_key,
             project=os.getenv("COMET_PROJECT_NAME"),
             workspace=os.getenv("COMET_WORKSPACE"),
-            experiment_name=f"{config['experiment']['name']}-inpainter-cluster{cluster_id}",
+            name=f"{config['experiment']['name']}-inpainter-cluster{cluster_id}",
         )
         logger.log_hyperparams({
             **config,
