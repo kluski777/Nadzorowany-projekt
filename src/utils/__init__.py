@@ -4,6 +4,7 @@ from .cutting import apply_cut, apply_cut_reproducible
 from .visualize import visualize_umap, visualize_elbow_plot
 from .latent import load_latent_spaces
 from .cluster import load_clusters
+from .device import get_device
 
 __all__ = [
     "load_config",
@@ -14,4 +15,5 @@ __all__ = [
     "visualize_elbow_plot",
     "load_latent_spaces",
     "load_clusters",
+    "get_device",
 ]

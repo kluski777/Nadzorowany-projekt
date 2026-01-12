@@ -5,25 +5,19 @@ import torch
 import pytorch_lightning as pl
 from datasets import Dataset, load_dataset
 from tqdm import tqdm
-import torch.nn as nn
 import joblib
 
 from models import get_autoencoder, FeatureExtractor, Clusterizer
 from data.module import WikiArtDataModule
-from utils import load_config
+from utils import load_config, load_latent_spaces
 from utils.cutting import apply_cut_reproducible
-
+from utils.device import get_device
 
 def _get_cutting_seed(config: dict, cutting_seed: Optional[int] = None) -> int:
     """Determine cutting seed from config or use provided value."""
     if cutting_seed is not None:
         return cutting_seed
-
-    seed = config.get("cutting", {}).get("seed")
-    if seed is None:
-        seed = config["experiment"]["seed"]
-
-    return seed
+    return config.get("cutting", {}).get("seed") or config["experiment"]["seed"]
 
 
 def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: int) -> WikiArtDataModule:
@@ -46,43 +40,38 @@ def _load_model(checkpoint_path: str, config: dict, device: torch.device) -> pl.
     """Load model from checkpoint and move to device."""
     model = get_autoencoder(config["model"]["architecture"]).load_from_checkpoint(checkpoint_path)
     model.eval()
-    model = model.to(device)
-    return model
+    return model.to(device)
 
 
-def _process_single_image(
-    image_idx: int,
-    full_dataset: Dataset,
-    data_module: WikiArtDataModule,
-    model: pl.LightningModule,
-    device: torch.device,
-    cutting_seed: int,
-) -> Tuple[int, np.ndarray, np.ndarray]:
-    """
-    Process a single image and return its latent spaces.
+def _load_clustering_models(
+    feature_extractor_path: str,
+    clusterizer_path: str,
+) -> Tuple[FeatureExtractor, Clusterizer, object]:
+    """Load feature extractor, clusterizer, and scaler."""
+    print(f"Loading feature extractor from: {feature_extractor_path}")
+    feature_extractor = FeatureExtractor.load(feature_extractor_path)
+    
+    print(f"Loading clusterizer from: {clusterizer_path}")
+    clusterizer = Clusterizer.load(clusterizer_path)
+    
+    scaler_path = Path(clusterizer_path).parent / "scaler.pkl"
+    print(f"Loading scaler from: {scaler_path}")
+    scaler = joblib.load(scaler_path)
+    
+    return feature_extractor, clusterizer, scaler
 
-    Returns:
-        Tuple of (image_index, latent_full, latent_cut)
-    """
-    # Load image from dataset
-    image_item = full_dataset[image_idx]
-    image = image_item["image"]
 
-    # Apply transform
-    image_tensor = data_module.transform(image)
-    image_tensor = image_tensor.unsqueeze(0).to(device)
-
-    # Encode full image
-    latent_full = model.encode(image_tensor)
-    latent_full = latent_full.squeeze(0).cpu().numpy()
-
-    # Apply cut and encode cut image
-    image_cut = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + image_idx)
-    image_cut = image_cut.unsqueeze(0).to(device)
-    latent_cut = model.encode(image_cut)
-    latent_cut = latent_cut.squeeze(0).cpu().numpy()
-
-    return image_idx, latent_full, latent_cut
+def _compute_clusters(
+    latent_array: np.ndarray,
+    feature_extractor: FeatureExtractor,
+    clusterizer: Clusterizer,
+    scaler,
+) -> np.ndarray:
+    """Compute cluster assignments for latent spaces."""
+    flat = latent_array.reshape(latent_array.shape[0], -1)
+    components = feature_extractor.transform(flat)
+    scaled = scaler.transform(components)
+    return clusterizer.predict(scaled)
 
 
 def _process_split(
@@ -90,16 +79,11 @@ def _process_split(
     indices: List[int],
     full_dataset: Dataset,
     data_module: WikiArtDataModule,
-    model: nn.Module,
+    model: pl.LightningModule,
     device: torch.device,
     cutting_seed: int,
-) -> Tuple[List[int], List[np.ndarray], List[np.ndarray], int]:
-    """
-    Process all images in a split and collect their latent spaces.
-
-    Returns:
-        Tuple of (image_indices, latent_full_list, latent_cut_list, error_count)
-    """
+) -> Tuple[List[int], np.ndarray, np.ndarray, int]:
+    """Process all images in a split and return their latent spaces."""
     image_indices = []
     latent_full_list = []
     latent_cut_list = []
@@ -108,74 +92,89 @@ def _process_split(
     with torch.inference_mode():
         for idx in tqdm(indices, desc=f"Processing {split_name}"):
             try:
-                image_idx, latent_full, latent_cut = _process_single_image(
-                    idx, full_dataset, data_module, model, device, cutting_seed
-                )
-                image_indices.append(image_idx)
+                image = full_dataset[idx]["image"]
+                image_tensor = data_module.transform(image).unsqueeze(0).to(device)
+                
+                # Encode full image
+                latent_full = model.encode(image_tensor).squeeze(0).cpu().numpy()
+                
+                # Apply cut and encode
+                image_cut = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + idx)
+                latent_cut = model.encode(image_cut.unsqueeze(0).to(device)).squeeze(0).cpu().numpy()
+                
+                image_indices.append(idx)
                 latent_full_list.append(latent_full)
                 latent_cut_list.append(latent_cut)
             except Exception as e:
                 print(f"\nError processing image {idx} in {split_name}: {e}")
                 error_count += 1
-                continue
 
-    return image_indices, latent_full_list, latent_cut_list, error_count
-
-
-def _compute_clusters(
-    latent_full_list: List[np.ndarray],
-    feature_extractor: FeatureExtractor,
-    clusterizer: Clusterizer,
-    scaler,
-) -> np.ndarray:
-    """Compute cluster assignments for latent spaces using feature extractor and clusterizer."""
-    # Stack latent spaces: [num_images, latent_channels, 8, 8]
-    full_array = np.stack(latent_full_list, axis=0)
-    # Flatten for feature extraction: [num_images, latent_channels * 8 * 8]
-    full_flat = full_array.reshape(full_array.shape[0], -1)
-    # Extract features (PCA)
-    latent_components = feature_extractor.transform(full_flat)
-    # Scale features
-    latent_components_scaled = scaler.transform(latent_components)
-    # Predict clusters
-    clusters = clusterizer.predict(latent_components_scaled)
-    return clusters
+    return (
+        image_indices,
+        np.stack(latent_full_list, axis=0),
+        np.stack(latent_cut_list, axis=0),
+        error_count,
+    )
 
 
-def _save_split_latent_spaces(
-    split_name: str,
-    image_indices: List[int],
-    latent_full_list: List[np.ndarray],
-    latent_cut_list: List[np.ndarray],
-    output_path: Path,
+def _save_latent_spaces(
+    output_file: Path,
+    indices: np.ndarray,
+    target_latent: np.ndarray,
+    masked_latent: np.ndarray,
     clusters: Optional[np.ndarray] = None,
 ) -> None:
-    """Save latent spaces for a split as a compressed numpy file."""
-    print(f"Saving {len(image_indices)} latent spaces to {split_name}.npz...")
-
-    # Stack arrays: [num_images, latent_channels, 8, 8]
-    indices_array = np.array(image_indices, dtype=np.int64)
-    target_latent_array = np.stack(latent_full_list, axis=0)
-    masked_latent_array = np.stack(latent_cut_list, axis=0)
-
-    output_file = output_path / f"{split_name}.npz"
-    
-    # Build save dict - clusters are optional
+    """Save latent spaces as a compressed numpy file."""
     save_dict = {
-        "indices": indices_array,
-        "target_latent": target_latent_array,
-        "masked_latent": masked_latent_array,
+        "indices": indices,
+        "target_latent": target_latent,
+        "masked_latent": masked_latent,
     }
     if clusters is not None:
         save_dict["cluster"] = clusters
-    
+
     np.savez_compressed(output_file, **save_dict)
-    print(f"Saved {output_file} ({output_file.stat().st_size / 1024 / 1024:.2f} MB)")
-    print(f"  Shape - target_latent: {target_latent_array.shape}, masked_latent: {masked_latent_array.shape}")
+    
+    size_mb = output_file.stat().st_size / 1024 / 1024
+    print(f"Saved {output_file} ({size_mb:.2f} MB)")
+    print(f"  Shape: target_latent={target_latent.shape}, masked_latent={masked_latent.shape}")
     if clusters is not None:
-        print(f"  Clusters: {len(np.unique(clusters))} unique clusters")
-    else:
-        print("  Clusters: not included (no clusterizer provided)")
+        print(f"  Clusters: {len(np.unique(clusters))} unique")
+
+
+def _add_clusters_to_existing_files(
+    output_path: Path,
+    feature_extractor: FeatureExtractor,
+    clusterizer: Clusterizer,
+    scaler,
+) -> int:
+    """Add cluster assignments to existing latent space files. Returns total processed count."""
+    total_processed = 0
+    
+    for split_name in ["train", "val", "test"]:
+        print(f"\n{'=' * 60}")
+        print(f"Processing {split_name} split")
+        print(f"{'=' * 60}")
+        
+        split_file = output_path / f"{split_name}.npz"
+        data = load_latent_spaces(str(output_path), split_name)
+        
+        target_latent = data["target_latent"]
+        print(f"  Loaded {len(target_latent)} latent spaces, shape: {target_latent.shape}")
+        
+        print("  Computing cluster assignments...")
+        clusters = _compute_clusters(target_latent, feature_extractor, clusterizer, scaler)
+        
+        # Save with clusters added
+        save_dict = {key: data[key] for key in data.files}
+        save_dict["cluster"] = clusters
+        np.savez_compressed(split_file, **save_dict)
+        
+        size_mb = split_file.stat().st_size / 1024 / 1024
+        print(f"  Saved ({size_mb:.2f} MB), {len(np.unique(clusters))} unique clusters")
+        total_processed += len(target_latent)
+    
+    return total_processed
 
 
 def generate_latent_spaces(
@@ -199,97 +198,103 @@ def generate_latent_spaces(
         feature_extractor_checkpoint: Optional path to feature extractor for cluster assignment
         clusterizer_checkpoint: Optional path to clusterizer for cluster assignment
         
-    If feature_extractor_checkpoint and clusterizer_checkpoint are provided,
-    cluster labels will be computed and saved. Otherwise, latent spaces are
-    saved without cluster information.
+    Behavior:
+        - If feature_extractor and clusterizer checkpoints are provided AND latent space
+          files already exist, the function reuses existing files and only adds cluster assignments.
+        - If checkpoints are provided but files don't exist, latent spaces are generated
+          with cluster labels.
+        - If no checkpoints are provided, latent spaces are saved without cluster information.
     """
     print(f"Loading configuration from: {config_path}")
     config = load_config(config_path)
-
+    
     seed = config["experiment"]["seed"]
     pl.seed_everything(seed, workers=True)
-
+    
     cutting_seed = _get_cutting_seed(config, cutting_seed)
     print(f"Using cutting seed: {cutting_seed}")
-
+    
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    print(f"Output directory: {output_path}")
+    
+    enable_clustering = feature_extractor_checkpoint is not None and clusterizer_checkpoint is not None
+    
+    # Fast path: add clusters to existing files
+    if enable_clustering:
+        all_splits_exist = all((output_path / f"{s}.npz").exists() for s in ["train", "val", "test"])
+        if all_splits_exist:
+            print("Found existing latent space files. Adding cluster assignments...")
+            feature_extractor, clusterizer, scaler = _load_clustering_models(
+                feature_extractor_checkpoint, clusterizer_checkpoint
+            )
+            total = _add_clusters_to_existing_files(output_path, feature_extractor, clusterizer, scaler)
+            print(f"\n{'=' * 60}")
+            print(f"Cluster assignment complete! Total processed: {total}")
+            print(f"{'=' * 60}\n")
+            return
+    
+    # Full generation path
     data_module = _setup_data_module(config, seed, cutting_seed, batch_size)
-
+    
     print("Loading splits...")
     _, train_indices, val_indices, test_indices = data_module._load_splits_from_csv()
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    device = get_device()
     print(f"Using device: {device}")
     print(f"Loading model from checkpoint: {checkpoint_path}")
     model = _load_model(checkpoint_path, config, device)
-
-    # Load feature extractor and clusterizer for cluster assignment (optional)
-    enable_clustering = feature_extractor_checkpoint is not None and clusterizer_checkpoint is not None
-    feature_extractor = None
-    clusterizer = None
-    scaler = None
     
+    # Load clustering models if enabled
+    feature_extractor, clusterizer, scaler = None, None, None
     if enable_clustering:
-        print(f"Loading feature extractor from: {feature_extractor_checkpoint}")
-        feature_extractor = FeatureExtractor.load(feature_extractor_checkpoint)
-        print(f"Loading clusterizer from: {clusterizer_checkpoint}")
-        clusterizer = Clusterizer.load(clusterizer_checkpoint)
-        # Load scaler (saved alongside clusterizer)
-        scaler_path = Path(clusterizer_checkpoint).parent / "scaler.pkl"
-        print(f"Loading scaler from: {scaler_path}")
-        scaler = joblib.load(scaler_path)
+        feature_extractor, clusterizer, scaler = _load_clustering_models(
+            feature_extractor_checkpoint, clusterizer_checkpoint
+        )
     else:
-        print("No feature extractor/clusterizer provided - generating latent spaces without cluster labels")
-
+        print("No feature extractor/clusterizer provided - generating without cluster labels")
+    
     print("Loading full dataset...")
     full_dataset = load_dataset(
         "Artificio/WikiArt_Full",
         cache_dir=str(data_module.data_dir),
         split="train",
     )
-
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    print(f"Output directory: {output_path}")
-
+    
     total_processed = 0
     total_errors = 0
-
-    for split_name, indices in [
-        ("train", train_indices),
-        ("val", val_indices),
-        ("test", test_indices),
-    ]:
+    
+    splits = [("train", train_indices), ("val", val_indices), ("test", test_indices)]
+    
+    for split_name, indices in splits:
         print(f"\n{'=' * 60}")
         print(f"Processing {split_name} split ({len(indices)} images)")
         print(f"{'=' * 60}")
-
-        image_indices, latent_full_list, latent_cut_list, split_errors = _process_split(
+        
+        image_indices, target_latent, masked_latent, errors = _process_split(
             split_name, indices, full_dataset, data_module, model, device, cutting_seed
         )
-
-        # Compute cluster assignments if clustering is enabled
+        
         clusters = None
         if enable_clustering:
             print("Computing cluster assignments...")
-            clusters = _compute_clusters(latent_full_list, feature_extractor, clusterizer, scaler)
-
-        _save_split_latent_spaces(
-            split_name, image_indices, latent_full_list, latent_cut_list, output_path, clusters
+            clusters = _compute_clusters(target_latent, feature_extractor, clusterizer, scaler)
+        
+        _save_latent_spaces(
+            output_path / f"{split_name}.npz",
+            np.array(image_indices, dtype=np.int64),
+            target_latent,
+            masked_latent,
+            clusters,
         )
-
+        
         total_processed += len(image_indices)
-        total_errors += split_errors
-        print(f"\n{split_name} split complete:")
-        print(f"  Processed: {len(image_indices)}")
-        print(f"  Errors: {split_errors}")
-
+        total_errors += errors
+        print(f"  Completed: {len(image_indices)} processed, {errors} errors")
+    
     print(f"\n{'=' * 60}")
     print("Generation complete!")
-    print(f"  Total processed: {total_processed}")
-    print(f"  Total errors: {total_errors}")
-    print(f"  Output directory: {output_path}")
-    if enable_clustering:
-        print("  Cluster labels: included")
-    else:
-        print("  Cluster labels: not included")
+    print(f"  Total processed: {total_processed}, errors: {total_errors}")
+    print(f"  Output: {output_path}")
+    print(f"  Clusters: {'included' if enable_clustering else 'not included'}")
     print(f"{'=' * 60}\n")

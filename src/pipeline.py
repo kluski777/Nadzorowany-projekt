@@ -1,12 +1,4 @@
-"""
-Inference pipeline for latent space inpainting.
-
-Handles model loading and the full inference flow:
-masked image -> encode -> cluster -> inpaint -> decode -> reconstructed image
-"""
-
 from pathlib import Path
-from typing import Optional
 
 import joblib
 import numpy as np
@@ -15,8 +7,10 @@ from PIL import Image
 from torchvision import transforms
 
 from models import FeatureExtractor, Clusterizer
-from models.autoencoder.architectures import FinalAutoEncoder2k
+from models.autoencoder.architectures import FinalAutoEncoder2k, PixelShuffleResidualAE
 from models.inpainter import ConvLatentInpainter
+
+from utils.device import get_device
 
 
 class InferencePipeline:
@@ -27,8 +21,8 @@ class InferencePipeline:
     to process masked images and return reconstructed images.
     """
 
-    # Hardcoded model paths (from README.md conventions)
-    AUTOENCODER_PATH = "checkpoints/AE-latent2k.ckpt"
+    # AUTOENCODER_PATH = "checkpoints/AE-latent2k.ckpt"
+    AUTOENCODER_PATH = "checkpoints/AE-latent2k-PixelShuffleResidual.ckpt"
     FEATURE_EXTRACTOR_PATH = "data/models/feature_extractor.pkl"
     CLUSTERIZER_PATH = "data/models/clusterizer.pkl"
     SCALER_PATH = "data/models/scaler.pkl"
@@ -36,28 +30,14 @@ class InferencePipeline:
     INPAINTER_PATTERN = "inpainter-cluster{cluster_id}-final.ckpt"
     COMMON_INPAINTER_PATH = "checkpoints/inpainter-common-final.ckpt"
 
-    def __init__(self, device: Optional[str] = None):
-        """
-        Initialize the inference pipeline.
-        
-        Args:
-            device: Device to use ('cuda', 'cpu', or None for auto-detection)
-        """
-        # Auto-detect device
-        if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = torch.device(device)
-        
+    def __init__(self):
+        self.device = get_device()
         print(f"Using device: {self.device}")
-        
-        # Image preprocessing transform
         self.transform = transforms.Compose([
             transforms.Resize((256, 256)),
             transforms.ToTensor(),
         ])
         
-        # Load models
         self._load_models()
 
     def _load_models(self) -> None:
@@ -66,7 +46,11 @@ class InferencePipeline:
         
         # Load autoencoder
         print(f"  Loading autoencoder from: {self.AUTOENCODER_PATH}")
-        self.autoencoder = FinalAutoEncoder2k.load_from_checkpoint(
+        # self.autoencoder = FinalAutoEncoder2k.load_from_checkpoint(
+        #     self.AUTOENCODER_PATH,
+        #     map_location=self.device,
+        # )
+        self.autoencoder = PixelShuffleResidualAE.load_from_checkpoint(
             self.AUTOENCODER_PATH,
             map_location=self.device,
         )
@@ -88,35 +72,15 @@ class InferencePipeline:
         print("Models loaded successfully!")
 
     def preprocess(self, image: Image.Image) -> torch.Tensor:
-        """
-        Preprocess an image for inference.
-        
-        Args:
-            image: PIL Image (any size, RGB or RGBA)
-            
-        Returns:
-            Tensor of shape (1, 3, 256, 256)
-        """
-        # Convert to RGB if necessary
         if image.mode != "RGB":
             image = image.convert("RGB")
         
-        # Apply transforms and add batch dimension
         tensor = self.transform(image)
         tensor = tensor.unsqueeze(0).to(self.device)
         
         return tensor
 
     def predict_cluster(self, latent: torch.Tensor) -> int:
-        """
-        Predict the cluster ID for a latent representation.
-        
-        Args:
-            latent: Latent tensor of shape (1, channels, H, W)
-            
-        Returns:
-            Cluster ID (integer)
-        """
         latent_flat = latent.cpu().numpy().reshape(1, -1)
         
         latent_components = self.feature_extractor.transform(latent_flat)
@@ -126,18 +90,6 @@ class InferencePipeline:
         return int(cluster_id)
 
     def load_inpainter(self, cluster_id: int) -> tuple[ConvLatentInpainter, bool]:
-        """
-        Load the inpainter model for a specific cluster.
-        
-        Falls back to the common inpainter if cluster-specific one is not available.
-        Note: Inpainters are loaded fresh each time (not cached) to save memory.
-        
-        Args:
-            cluster_id: The cluster ID
-            
-        Returns:
-            Tuple of (ConvLatentInpainter model, is_common: bool)
-        """
         # Try cluster-specific inpainter first
         inpainter_path = Path(self.INPAINTER_DIR) / self.INPAINTER_PATTERN.format(
             cluster_id=cluster_id
@@ -168,15 +120,6 @@ class InferencePipeline:
         return inpainter, is_common
 
     def postprocess(self, tensor: torch.Tensor) -> Image.Image:
-        """
-        Convert output tensor back to PIL Image.
-        
-        Args:
-            tensor: Tensor of shape (1, 3, H, W) with values in [0, 1]
-            
-        Returns:
-            PIL Image
-        """
         tensor = tensor.squeeze(0).cpu()
         tensor = torch.clamp(tensor, 0, 1)
         array = tensor.permute(1, 2, 0).numpy()
@@ -186,15 +129,6 @@ class InferencePipeline:
 
     @torch.inference_mode()
     def inpaint(self, image: Image.Image) -> tuple[Image.Image, int, bool]:
-        """
-        Run the full inpainting pipeline.
-        
-        Args:
-            image: Input masked image (PIL Image)
-            
-        Returns:
-            Tuple of (reconstructed PIL Image, cluster_id, used_common_inpainter)
-        """
         input_tensor = self.preprocess(image)
         latent = self.autoencoder.encode(input_tensor)
         

@@ -8,6 +8,7 @@ from pathlib import Path
 from models import Clusterizer
 from .latent import load_latent_spaces
 from .cluster import load_clusters
+from .device import get_device
 
 
 def visualize_results(
@@ -23,7 +24,7 @@ def visualize_results(
     batch = next(iter(val_loader))
     images = batch["image"][:num_samples]
 
-    device = next(model.parameters()).device
+    device = get_device()
     images = images.to(device)
 
     with torch.inference_mode():

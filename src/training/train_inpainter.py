@@ -1,6 +1,7 @@
 import os
 from typing import Optional
 
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
@@ -18,28 +19,14 @@ def train_inpainter(
     latent_dir: str = "data/latent_spaces",
     checkpoint_path: Optional[str] = None,
 ):
-    """
-    Train a ConvLatentInpainter model.
-    
-    Args:
-        config: Configuration dictionary
-        cluster_id: The cluster ID to train the model for. If None, trains a common
-                   inpainter on all data (used as fallback when cluster-specific 
-                   inpainter is not available).
-        latent_dir: Directory containing the latent space npz files
-        checkpoint_path: Optional path to checkpoint file (.ckpt) to resume training from
-    """
     seed = config["experiment"]["seed"]
     pl.seed_everything(seed, workers=True)
 
-    # Get inpainter-specific config
     inpainter_config = config.get("inpainter", {})
     
-    # Determine model name based on cluster_id
     is_common = cluster_id is None
     model_name = "common" if is_common else f"cluster{cluster_id}"
     
-    # Setup data module
     data_module = LatentInpainterDataModule(
         latent_dir=latent_dir,
         cluster_id=cluster_id,  # None = use all data
@@ -47,7 +34,6 @@ def train_inpainter(
         num_workers=config["data"].get("num_workers", 4),
     )
 
-    # Create model
     model = ConvLatentInpainter(
         latent_channels=inpainter_config.get("latent_channels", config["model"]["latent_channels"]),
         hidden_channels=inpainter_config.get("hidden_channels", 256),
@@ -59,7 +45,6 @@ def train_inpainter(
     )
     print(f"\nModel architecture:\n{model}\n")
 
-    # Callbacks
     checkpoint_callback = ModelCheckpoint(
         dirpath="checkpoints",
         filename=f"inpainter-{model_name}-{{epoch:02d}}-{{val_loss:.6f}}",
@@ -75,7 +60,6 @@ def train_inpainter(
         mode="min",
     )
 
-    # Logger
     comet_api_key = os.getenv("COMET_API_KEY")
     if comet_api_key:
         logger = CometLogger(
@@ -94,7 +78,6 @@ def train_inpainter(
         logger = None
         print("Warning: COMET_API_KEY not found. Training without Comet logging.")
 
-    # Trainer
     trainer = pl.Trainer(
         max_epochs=inpainter_config.get("max_epochs", config["training"]["max_epochs"]),
         accelerator="auto",
@@ -107,7 +90,6 @@ def train_inpainter(
         precision="16-mixed",
     )
 
-    # Train
     print(f"\n{'=' * 60}")
     if is_common:
         print("Training Common Inpainter (all clusters)")
@@ -116,20 +98,24 @@ def train_inpainter(
     print(f"{'=' * 60}\n")
 
     if checkpoint_path:
-        print(f"Resuming training from checkpoint: {checkpoint_path}")
-        trainer.fit(model, data_module, ckpt_path=checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        model.load_state_dict(checkpoint)
+        trainer.fit(model, data_module)
     else:
         trainer.fit(model, data_module)
 
     print("\nTraining completed!")
     print(f"Best model path: {checkpoint_callback.best_model_path}")
 
-    # Save final model
     final_model_path = f"checkpoints/inpainter-{model_name}-final.ckpt"
-    trainer.save_checkpoint(final_model_path)
-    print(f"Final model saved to: {final_model_path}")
+    if checkpoint_callback.best_model_path:
+        best_checkpoint = torch.load(checkpoint_callback.best_model_path, map_location="cpu")
+        model_state_dict = best_checkpoint["state_dict"]
+        torch.save(model_state_dict, final_model_path)
+    else:
+        torch.save(model.state_dict(), final_model_path)
+    print(f"Final model weights saved to: {final_model_path}")
 
-    # Log to Comet if available
     if logger:
         logger.experiment.log_model(
             name=f"inpainter-{model_name}-final",

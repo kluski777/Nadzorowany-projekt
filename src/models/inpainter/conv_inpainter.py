@@ -46,18 +46,6 @@ class ConvLatentInpainter(pl.LightningModule):
         scheduler_factor: float = 0.5,
         loss_type: str = "mse",
     ):
-        """
-        Initialize the ConvLatentInpainter.
-        
-        Args:
-            latent_channels: Number of channels in the latent space (e.g., 128)
-            hidden_channels: Number of hidden channels in the conv blocks
-            num_blocks: Number of residual blocks
-            learning_rate: Learning rate for optimizer
-            scheduler_patience: Patience for learning rate scheduler
-            scheduler_factor: Factor for learning rate reduction
-            loss_type: Type of loss function ('mse', 'mae', 'huber', etc.)
-        """
         super().__init__()
         self.save_hyperparameters()
 
