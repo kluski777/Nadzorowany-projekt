@@ -4,14 +4,7 @@ import torchvision.utils as vutils
 
 
 class ReconstructionLogger(Callback):
-    """Logs reconstruction examples to Comet every N epochs."""
-
     def __init__(self, log_every_n_epochs: int = 5, num_samples: int = 8):
-        """
-        Args:
-            log_every_n_epochs: How often to log images
-            num_samples: Number of image pairs to log (original + reconstruction)
-        """
         super().__init__()
 
         self.log_every_n_epochs = log_every_n_epochs
@@ -19,13 +12,10 @@ class ReconstructionLogger(Callback):
         self.sample_batch = None
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        """Capture first validation batch for logging."""
         if batch_idx == 0 and self.sample_batch is None:
             self.sample_batch = {"image": batch["image"][: self.num_samples].detach().cpu()}
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        """Log reconstructions every N epochs."""
-
         if self.sample_batch is None:
             return
 

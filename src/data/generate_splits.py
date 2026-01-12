@@ -14,27 +14,14 @@ def generate_splits(
     data_dir: str,
     splits_dir: str = "splits",
 ):
-    """
-    Generate reproducible train/val/test splits and save them as CSV files.
-
-    Args:
-        seed: Random seed for reproducible split generation
-        total_samples: Total number of samples to use (None for full dataset)
-        val_split: Fraction of data for validation (e.g., 0.1 for 10%)
-        test_split: Fraction of data for testing (e.g., 0.1 for 10%)
-        data_dir: Base directory for dataset
-        splits_dir: Directory name relative to data_dir where splits will be saved
-    """
     data_dir_path = Path(data_dir)
     splits_path = data_dir_path / splits_dir
 
-    # Ensure data directory exists
     data_dir_path.mkdir(parents=True, exist_ok=True)
 
     print(f"Generating splits with seed {seed}...")
     print(f"Splits will be saved to: {splits_path}")
 
-    # Load full dataset (non-streaming) with fixed seed
     print("Loading dataset...")
     full_dataset = load_dataset(
         "Artificio/WikiArt_Full",
@@ -47,27 +34,21 @@ def generate_splits(
 
     print(f"Using {total_samples} samples from dataset (total available: {len(full_dataset)})")
 
-    # Use fixed random seed for splitting
     random.seed(seed)
 
-    # Create shuffled indices
     indices = list(range(total_samples))
     random.shuffle(indices)
 
-    # Calculate split sizes
     test_size = int(total_samples * test_split)
     val_size = int(total_samples * val_split)
     train_size = total_samples - val_size - test_size
 
-    # Split indices
     train_indices = indices[:train_size]
     val_indices = indices[train_size : train_size + val_size]
     test_indices = indices[train_size + val_size :]
 
-    # Create splits directory
     splits_path.mkdir(parents=True, exist_ok=True)
 
-    # Save splits to CSV files (one index per line)
     train_csv_path = splits_path / "train.csv"
     val_csv_path = splits_path / "val.csv"
     test_csv_path = splits_path / "test.csv"
@@ -85,7 +66,6 @@ def generate_splits(
         for idx in test_indices:
             f.write(f"{idx}\n")
 
-    # Save metadata
     metadata = {
         "seed": seed,
         "total_samples": total_samples,

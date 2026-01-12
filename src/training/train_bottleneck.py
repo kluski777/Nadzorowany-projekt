@@ -18,19 +18,6 @@ load_dotenv()
 
 
 def train_bottleneck(config: dict):
-    """
-    Train the specified bottleneck variant.
-
-    Args:
-        config: Configuration dictionary with keys:
-            - model.variant: "4k", "2k", or "1k"
-            - model.pretrained_checkpoint: path to previous stage checkpoint
-            - model.learning_rate: learning rate
-            - model.loss_type: loss function type
-            - data.*: data configuration
-            - training.*: training configuration
-            - experiment.*: experiment configuration
-    """
     seed = config["experiment"]["seed"]
     pl.seed_everything(seed, workers=True)
 
@@ -39,7 +26,6 @@ def train_bottleneck(config: dict):
     if cutting_seed is None:
         cutting_seed = seed
 
-    # Data setup
     data_module = WikiArtDataModule(
         batch_size=config["data"]["batch_size"],
         num_workers=config["data"]["num_workers"],
@@ -61,7 +47,6 @@ def train_bottleneck(config: dict):
     scheduler_patience = config["training"]["lr_scheduler_patience"]
     scheduler_factor = config["training"]["lr_scheduler_factor"]
 
-    # Create model based on variant
     if variant == "4k":
         model = BottleneckAE4k(
             base_checkpoint=checkpoint,
@@ -100,7 +85,6 @@ def train_bottleneck(config: dict):
     print(f"Learning rate: {learning_rate}")
     print(f"{'='*60}\n")
 
-    # Checkpoint directory
     checkpoint_dir = f"checkpoints/bottleneck_{variant}"
     os.makedirs(checkpoint_dir, exist_ok=True)
 
@@ -170,17 +154,14 @@ def train_bottleneck(config: dict):
     print("\nTraining completed!")
     print(f"Best model path: {checkpoint_callback.best_model_path}")
 
-    # Save final model
     final_model_path = f"{checkpoint_dir}/{experiment_name}-final.ckpt"
     trainer.save_checkpoint(final_model_path)
     print(f"Final model saved to: {final_model_path}")
 
-    # Visualization
     print("\nGenerating visualization...")
     visualize_results(model, data_module, num_samples=config["experiment"]["visualization_samples"])
     logger.experiment.log_image("reconstruction_results.png", name="Final Reconstructions")
 
-    # Log model to Comet
     logger.experiment.log_model(
         name=f"{experiment_name}-final-model",
         file_or_folder=final_model_path,

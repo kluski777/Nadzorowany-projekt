@@ -15,19 +15,11 @@ load_dotenv()
 
 
 def is_weights_only_checkpoint(checkpoint_path: str) -> bool:
-    """Check if checkpoint is weights-only (no optimizer state)."""
     ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     return "optimizer_states" not in ckpt
 
 
 def train_autoencoder(config: dict, checkpoint_path: str = None):
-    """
-    Train AutoEncoder on WikiArt dataset.
-
-    Args:
-        config: Configuration dictionary
-        checkpoint_path: Optional path to checkpoint file (.ckpt) to resume training from
-    """
     seed = config["experiment"]["seed"]
     pl.seed_everything(seed, workers=True)
 

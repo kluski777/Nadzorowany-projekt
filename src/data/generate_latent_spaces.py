@@ -14,14 +14,12 @@ from utils.cutting import apply_cut_reproducible
 from utils.device import get_device
 
 def _get_cutting_seed(config: dict, cutting_seed: Optional[int] = None) -> int:
-    """Determine cutting seed from config or use provided value."""
     if cutting_seed is not None:
         return cutting_seed
     return config.get("cutting", {}).get("seed") or config["experiment"]["seed"]
 
 
 def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: int) -> WikiArtDataModule:
-    """Create and prepare data module."""
     data_module = WikiArtDataModule(
         batch_size=batch_size,
         num_workers=0,
@@ -37,7 +35,6 @@ def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: i
 
 
 def _load_model(checkpoint_path: str, config: dict, device: torch.device) -> pl.LightningModule:
-    """Load model from checkpoint and move to device."""
     model = get_autoencoder(config["model"]["architecture"]).load_from_checkpoint(checkpoint_path)
     model.eval()
     return model.to(device)
@@ -47,7 +44,6 @@ def _load_clustering_models(
     feature_extractor_path: str,
     clusterizer_path: str,
 ) -> Tuple[FeatureExtractor, Clusterizer, object]:
-    """Load feature extractor, clusterizer, and scaler."""
     print(f"Loading feature extractor from: {feature_extractor_path}")
     feature_extractor = FeatureExtractor.load(feature_extractor_path)
     
@@ -67,7 +63,6 @@ def _compute_clusters(
     clusterizer: Clusterizer,
     scaler,
 ) -> np.ndarray:
-    """Compute cluster assignments for latent spaces."""
     flat = latent_array.reshape(latent_array.shape[0], -1)
     components = feature_extractor.transform(flat)
     scaled = scaler.transform(components)
@@ -83,7 +78,6 @@ def _process_split(
     device: torch.device,
     cutting_seed: int,
 ) -> Tuple[List[int], np.ndarray, np.ndarray, int]:
-    """Process all images in a split and return their latent spaces."""
     image_indices = []
     latent_full_list = []
     latent_cut_list = []
@@ -95,10 +89,8 @@ def _process_split(
                 image = full_dataset[idx]["image"]
                 image_tensor = data_module.transform(image).unsqueeze(0).to(device)
                 
-                # Encode full image
                 latent_full = model.encode(image_tensor).squeeze(0).cpu().numpy()
                 
-                # Apply cut and encode
                 image_cut = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + idx)
                 latent_cut = model.encode(image_cut.unsqueeze(0).to(device)).squeeze(0).cpu().numpy()
                 
@@ -124,7 +116,6 @@ def _save_latent_spaces(
     masked_latent: np.ndarray,
     clusters: Optional[np.ndarray] = None,
 ) -> None:
-    """Save latent spaces as a compressed numpy file."""
     save_dict = {
         "indices": indices,
         "target_latent": target_latent,
@@ -148,7 +139,6 @@ def _add_clusters_to_existing_files(
     clusterizer: Clusterizer,
     scaler,
 ) -> int:
-    """Add cluster assignments to existing latent space files. Returns total processed count."""
     total_processed = 0
     
     for split_name in ["train", "val", "test"]:
@@ -165,7 +155,6 @@ def _add_clusters_to_existing_files(
         print("  Computing cluster assignments...")
         clusters = _compute_clusters(target_latent, feature_extractor, clusterizer, scaler)
         
-        # Save with clusters added
         save_dict = {key: data[key] for key in data.files}
         save_dict["cluster"] = clusters
         np.savez_compressed(split_file, **save_dict)
@@ -186,25 +175,6 @@ def generate_latent_spaces(
     feature_extractor_checkpoint: Optional[str] = None,
     clusterizer_checkpoint: Optional[str] = None,
 ):
-    """
-    Generate latent spaces for images in dataset splits.
-    
-    Args:
-        config_path: Path to configuration YAML file
-        checkpoint_path: Path to autoencoder checkpoint
-        output_dir: Output directory for latent spaces
-        cutting_seed: Seed for cutting operations
-        batch_size: Batch size for processing
-        feature_extractor_checkpoint: Optional path to feature extractor for cluster assignment
-        clusterizer_checkpoint: Optional path to clusterizer for cluster assignment
-        
-    Behavior:
-        - If feature_extractor and clusterizer checkpoints are provided AND latent space
-          files already exist, the function reuses existing files and only adds cluster assignments.
-        - If checkpoints are provided but files don't exist, latent spaces are generated
-          with cluster labels.
-        - If no checkpoints are provided, latent spaces are saved without cluster information.
-    """
     print(f"Loading configuration from: {config_path}")
     config = load_config(config_path)
     
@@ -220,7 +190,6 @@ def generate_latent_spaces(
     
     enable_clustering = feature_extractor_checkpoint is not None and clusterizer_checkpoint is not None
     
-    # Fast path: add clusters to existing files
     if enable_clustering:
         all_splits_exist = all((output_path / f"{s}.npz").exists() for s in ["train", "val", "test"])
         if all_splits_exist:
@@ -234,7 +203,6 @@ def generate_latent_spaces(
             print(f"{'=' * 60}\n")
             return
     
-    # Full generation path
     data_module = _setup_data_module(config, seed, cutting_seed, batch_size)
     
     print("Loading splits...")
@@ -245,7 +213,6 @@ def generate_latent_spaces(
     print(f"Loading model from checkpoint: {checkpoint_path}")
     model = _load_model(checkpoint_path, config, device)
     
-    # Load clustering models if enabled
     feature_extractor, clusterizer, scaler = None, None, None
     if enable_clustering:
         feature_extractor, clusterizer, scaler = _load_clustering_models(

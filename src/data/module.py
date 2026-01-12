@@ -31,7 +31,6 @@ class WikiArtDataset(IterableDataset):
         self.cutting_seed = cutting_seed
 
     def set_epoch(self, epoch):
-        """Set the current epoch for shuffling."""
         self.epoch = epoch
 
     def __iter__(self):
@@ -99,7 +98,6 @@ class WikiArtDataModule(pl.LightningDataModule):
         self.test_dataset = None
 
     def prepare_data(self):
-        """Download dataset to local directory if not already downloaded."""
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
         dataset_path = self.data_dir / "Artificio___WikiArt_Full"
@@ -115,7 +113,6 @@ class WikiArtDataModule(pl.LightningDataModule):
             print(f"Dataset already exists at {dataset_path}")
 
     def _load_splits_from_csv(self):
-        """Load pre-generated splits from CSV files."""
         if not self.splits_dir.exists():
             raise ValueError(
                 f"Splits directory does not exist: {self.splits_dir}\n"
@@ -171,8 +168,6 @@ class WikiArtDataModule(pl.LightningDataModule):
         return metadata, train_indices, val_indices, test_indices
 
     def setup(self, stage: Optional[str] = None):
-        """Setup datasets with pre-generated splits from CSV files."""
-
         metadata, _, _, _ = self._load_splits_from_csv()
 
         self.train_size = metadata["train_size"]

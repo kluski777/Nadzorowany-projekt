@@ -4,16 +4,6 @@ from .residual_block import ResidualBlock
 
 
 class DownsampleBlock(nn.Module):
-    """
-    Downsampling block for encoder architecture.
-
-    Consists of:
-    - Conv2d layer for downsampling
-    - BatchNorm2d for normalization
-    - GELU activation
-    - Optional ResidualBlock for feature refinement
-    """
-
     def __init__(
         self,
         in_channels: int,

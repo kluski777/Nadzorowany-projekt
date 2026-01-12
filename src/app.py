@@ -1,8 +1,3 @@
-"""
-Flask application for latent space inpainting inference.
-
-Provides a web interface to upload masked images and get reconstructed results.
-"""
 
 import io
 
@@ -20,22 +15,11 @@ print("Pipeline ready!")
 
 @app.route("/", methods=["GET"])
 def index():
-    """Render the main upload page."""
     return render_template("index.html")
 
 
 @app.route("/inpaint", methods=["POST"])
 def inpaint():
-    """
-    Process an uploaded image and return the inpainted result.
-    
-    Expects:
-        - POST request with 'image' file field
-        
-    Returns:
-        - PNG image of the reconstructed result
-    """
-    # Check if image was uploaded
     if "image" not in request.files:
         return jsonify({"error": "No image file provided"}), 400
     
@@ -45,17 +29,13 @@ def inpaint():
         return jsonify({"error": "No image file selected"}), 400
     
     try:
-        # Load image from upload
         image = Image.open(file.stream)
         print(f"Received image: {file.filename} ({image.size})")
         
-        # Run inpainting pipeline
-        print("Running inpainting pipeline...")
         result_image, cluster_id, used_common = pipeline.inpaint(image)
         inpainter_type = "common" if used_common else f"cluster {cluster_id}"
         print(f"Inpainting complete! Used {inpainter_type} inpainter")
         
-        # Convert result to bytes
         img_bytes = io.BytesIO()
         result_image.save(img_bytes, format="PNG")
         img_bytes.seek(0)
@@ -76,7 +56,6 @@ def inpaint():
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Health check endpoint."""
     return jsonify({"status": "ok", "device": str(pipeline.device)})
 
 

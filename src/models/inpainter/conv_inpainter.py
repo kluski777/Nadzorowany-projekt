@@ -6,8 +6,6 @@ from models.losses import get_loss_function
 
 
 class ResidualConvBlock(nn.Module):
-    """Residual convolutional block that preserves spatial dimensions."""
-
     def __init__(self, channels: int, hidden_channels: int, kernel_size: int = 3):
         super().__init__()
         padding = kernel_size // 2
@@ -26,16 +24,6 @@ class ResidualConvBlock(nn.Module):
 
 
 class ConvLatentInpainter(pl.LightningModule):
-    """
-    Convolutional inpainter for latent space reconstruction.
-    
-    Takes a masked latent space and outputs a reconstructed latent space
-    that should match the original unmasked latent space.
-    
-    Uses residual learning: output = input + model(input)
-    This allows the model to learn the "correction" needed to fix the masked regions.
-    """
-
     def __init__(
         self,
         latent_channels: int = 128,
@@ -56,39 +44,24 @@ class ConvLatentInpainter(pl.LightningModule):
 
         self.loss_fn = get_loss_function(loss_type)
 
-        # Initial projection to hidden channels
         self.input_conv = nn.Sequential(
             nn.Conv2d(latent_channels, hidden_channels, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(hidden_channels),
             nn.LeakyReLU(0.2, inplace=True),
         )
 
-        # Stack of residual blocks
         self.residual_blocks = nn.Sequential(
             *[ResidualConvBlock(hidden_channels, hidden_channels * 2, kernel_size=3) for _ in range(num_blocks)]
         )
 
-        # Final projection back to latent channels
         self.output_conv = nn.Sequential(
             nn.Conv2d(hidden_channels, latent_channels, kernel_size=3, stride=1, padding=1),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass with residual connection.
-        
-        Args:
-            x: Masked latent space of shape (B, latent_channels, H, W)
-            
-        Returns:
-            Reconstructed latent space of shape (B, latent_channels, H, W)
-        """
-        # Process through conv network
         h = self.input_conv(x)
         h = self.residual_blocks(h)
         correction = self.output_conv(h)
-        
-        # Residual learning: output = input + correction
         return x + correction
 
     def training_step(self, batch, batch_idx):

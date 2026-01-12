@@ -3,8 +3,6 @@ import torch.nn as nn
 
 
 class ResidualBlock(nn.Module):
-    """Basic ResNet-style residual block with skip connection."""
-
     def __init__(self, channels: int, kernel_size: int = 3):
         super().__init__()
         padding = kernel_size // 2

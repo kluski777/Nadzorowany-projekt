@@ -17,7 +17,6 @@ def visualize_results(
     num_samples: int = 8,
     output_path: str = "reconstruction_results.png",
 ):
-    """Visualize original vs reconstructed images and save to a file."""
     model.eval()
 
     val_loader = data_module.val_dataloader()
@@ -38,14 +37,12 @@ def visualize_results(
     _, axes = plt.subplots(2, num_samples, figsize=(20, 5))
 
     for i in range(num_samples):
-        # Original image
         img_orig = images[i].permute(1, 2, 0).numpy()
         axes[0, i].imshow(np.clip(img_orig, 0, 1))
         axes[0, i].axis("off")
         if i == 0:
             axes[0, i].set_title("Original", fontsize=12)
 
-        # Reconstructed image
         img_recon = reconstructed[i].permute(1, 2, 0).numpy()
         axes[1, i].imshow(np.clip(img_recon, 0, 1))
         axes[1, i].axis("off")
@@ -58,28 +55,6 @@ def visualize_results(
 
 
 def visualize_umap(latent_components_input_dir: str, clusters_input_dir: str, output_dir: str = "data/plots"):
-    """
-    Visualize UMAP embeddings of latent components colored by cluster assignments.
-
-    This function loads latent components from all dataset splits (train, validation, test),
-    combines them, and applies UMAP dimensionality reduction to project them into 2D space.
-    The resulting embedding is visualized as a scatter plot where points are colored according
-    to their cluster assignments, providing insight into the clustering quality and data structure.
-
-    Args:
-        latent_components_input_dir (str): Directory containing latent spaces for all splits.
-        clusters_input_dir (str): Directory containing cluster assignments for all splits.
-        output_dir (str): Directory where the visualization plot will be saved.
-                         Defaults to "data/plots"
-
-    Saves:
-        A PNG file named "umap-visualization.png" in the specified output directory,
-        showing the 2D UMAP projection with cluster-colored points.
-
-    Note:
-        Requires pre-generated clusters in "data/clusters" directory.
-        Uses random_state=42 for reproducible UMAP embeddings.
-    """
     train_latent_components = load_latent_spaces(latent_components_input_dir, "train")["full"]
     val_latent_components = load_latent_spaces(latent_components_input_dir, "val")["full"]
     test_latent_components = load_latent_spaces(latent_components_input_dir, "test")["full"]
@@ -114,15 +89,6 @@ def visualize_elbow_plot(
     max_clusters: int = 20,
     output_dir: str = "data/plots",
 ):
-    """
-    Visualize elbow plot to determine optimal number of clusters.
-
-    Args:
-        input_dir: Directory containing latent spaces
-        min_clusters: Minimum number of clusters to test
-        max_clusters: Maximum number of clusters to test
-        output_path: Path to save the elbow plot
-    """
     print("Loading training latent components...")
     latent_components = load_latent_spaces(input_dir, "train")
     full_latent_components = latent_components["full"]

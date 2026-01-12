@@ -105,7 +105,7 @@ Fit a K-means clusterizer on the latent components:
 uv run src/main.py fit_clusterizer \
     --input-dir data/latent_components \
     --output-dir data/models \
-    --n-clusters 20
+    --n-clusters 12
 ```
 
 This saves `data/models/clusterizer.pkl` and `data/models/scaler.pkl`.
@@ -129,7 +129,7 @@ Regenerate latent spaces with cluster labels included:
 uv run src/main.py generate_latent_spaces \
     --config config.yaml \
     --checkpoint checkpoints/AE-latent2k.ckpt \
-    --output-dir data/latent_spaces_clustered \
+    --output-dir data/latent_spaces \
     --feature-extractor-checkpoint data/models/feature_extractor.pkl \
     --clusterizer-checkpoint data/models/clusterizer.pkl
 ```
@@ -147,7 +147,7 @@ Train a single inpainter on all data (used as fallback when cluster-specific inp
 ```bash
 uv run src/main.py train_inpainter \
     --config config.yaml \
-    --latent-dir data/latent_spaces_clustered
+    --latent-dir data/latent_spaces
 ```
 
 This saves `checkpoints/inpainter-common-final.ckpt`.
@@ -161,13 +161,13 @@ Train a separate inpainter model for each cluster:
 uv run src/main.py train_inpainter \
     --config config.yaml \
     --cluster-id 0 \
-    --latent-dir data/latent_spaces_clustered
+    --latent-dir data/latent_spaces
 
 # Train inpainter for cluster 1
 uv run src/main.py train_inpainter \
     --config config.yaml \
     --cluster-id 1 \
-    --latent-dir data/latent_spaces_clustered
+    --latent-dir data/latent_spaces
 
 # ... repeat for all clusters
 ```
@@ -208,18 +208,6 @@ data/latent_spaces/
 │   ├── indices: [n_samples]
 │   ├── masked_latent: [n_samples, latent_channels, 8, 8]
 │   └── target_latent: [n_samples, latent_channels, 8, 8]
-├── val.npz
-└── test.npz
-```
-
-### Latent Spaces (with clusters)
-```
-data/latent_spaces_clustered/
-├── train.npz
-│   ├── indices: [n_samples]
-│   ├── masked_latent: [n_samples, latent_channels, 8, 8]
-│   ├── target_latent: [n_samples, latent_channels, 8, 8]
-│   └── cluster: [n_samples]  # Cluster IDs
 ├── val.npz
 └── test.npz
 ```

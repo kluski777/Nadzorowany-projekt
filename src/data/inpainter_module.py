@@ -8,49 +8,29 @@ from torch.utils.data import Dataset, DataLoader
 
 
 class LatentInpainterDataset(Dataset):
-    """
-    Dataset for latent space inpainting.
-    
-    Loads latent spaces from npz files and optionally filters by cluster ID.
-    Returns (masked_latent, target_latent) pairs as tensors.
-    """
-
     def __init__(
         self,
         latent_dir: str,
         split: str,
         cluster_id: Optional[int] = None,
     ):
-        """
-        Initialize the dataset.
-        
-        Args:
-            latent_dir: Directory containing the npz files (train.npz, val.npz, test.npz)
-            split: One of 'train', 'val', 'test'
-            cluster_id: If provided, only samples from this cluster are included.
-                       If None, all samples are included.
-                       Raises error if cluster_id is specified but data has no cluster labels.
-        """
         self.latent_dir = Path(latent_dir)
         self.split = split
         self.cluster_id = cluster_id
         
-        # Load the npz file
         npz_path = self.latent_dir / f"{split}.npz"
         if not npz_path.exists():
             raise FileNotFoundError(f"Latent space file not found: {npz_path}")
         
         data = np.load(npz_path)
         
-        self.masked_latent = data["masked_latent"]  # Shape: (n_samples, latent_channels, H, W)
-        self.target_latent = data["target_latent"]  # Shape: (n_samples, latent_channels, H, W)
-        self.indices = data["indices"]  # Shape: (n_samples,)
+        self.masked_latent = data["masked_latent"]
+        self.target_latent = data["target_latent"]
+        self.indices = data["indices"]
         
-        # Check if cluster data is available
         has_clusters = "cluster" in data.files
         self.clusters = data["cluster"] if has_clusters else None
         
-        # Filter by cluster if specified
         if cluster_id is not None:
             if not has_clusters:
                 raise ValueError(
@@ -87,13 +67,6 @@ class LatentInpainterDataset(Dataset):
 
 
 class LatentInpainterDataModule(pl.LightningDataModule):
-    """
-    PyTorch Lightning DataModule for latent space inpainting.
-    
-    Handles loading and preparing datasets for training, validation, and testing.
-    Can filter samples by cluster ID to train cluster-specific models.
-    """
-
     def __init__(
         self,
         latent_dir: str = "data/latent_spaces",
@@ -101,16 +74,6 @@ class LatentInpainterDataModule(pl.LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 4,
     ):
-        """
-        Initialize the DataModule.
-        
-        Args:
-            latent_dir: Directory containing the latent space npz files
-            cluster_id: If provided, only samples from this cluster are used.
-                       If None, all samples are used.
-            batch_size: Batch size for dataloaders
-            num_workers: Number of workers for dataloaders
-        """
         super().__init__()
         
         self.latent_dir = latent_dir
@@ -123,7 +86,6 @@ class LatentInpainterDataModule(pl.LightningDataModule):
         self.test_dataset: Optional[LatentInpainterDataset] = None
 
     def setup(self, stage: Optional[str] = None):
-        """Setup datasets for each stage."""
         if stage == "fit" or stage is None:
             self.train_dataset = LatentInpainterDataset(
                 latent_dir=self.latent_dir,

@@ -5,7 +5,6 @@ from pytorch_lightning.loggers import CometLogger
 
 
 class CometModelUploadCallback(Callback):
-
     def __init__(self, model_name_prefix: str, comet_logger: CometLogger):
         super().__init__()
         self.model_name_prefix = model_name_prefix

@@ -4,16 +4,6 @@ from .residual_block import ResidualBlock
 
 
 class UpsampleBlock(nn.Module):
-    """
-    Upsampling block for decoder architecture.
-
-    Consists of:
-    - ConvTranspose2d layer for upsampling
-    - BatchNorm2d for normalization
-    - GELU activation
-    - Optional ResidualBlock for feature refinement
-    """
-
     def __init__(
         self,
         in_channels: int,

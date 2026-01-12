@@ -14,13 +14,7 @@ from utils.device import get_device
 
 
 class InferencePipeline:
-    """
-    Pipeline for latent space inpainting inference.
-    
-    Loads autoencoder, feature extractor, clusterizer, and inpainters
-    to process masked images and return reconstructed images.
-    """
-
+    """Pipeline for latent space inpainting inference."""
     # AUTOENCODER_PATH = "checkpoints/AE-latent2k.ckpt"
     AUTOENCODER_PATH = "checkpoints/AE-latent2k-PixelShuffleResidual.ckpt"
     FEATURE_EXTRACTOR_PATH = "data/models/feature_extractor.pkl"
@@ -41,10 +35,8 @@ class InferencePipeline:
         self._load_models()
 
     def _load_models(self) -> None:
-        """Load all required models."""
         print("Loading models...")
         
-        # Load autoencoder
         print(f"  Loading autoencoder from: {self.AUTOENCODER_PATH}")
         # self.autoencoder = FinalAutoEncoder2k.load_from_checkpoint(
         #     self.AUTOENCODER_PATH,
@@ -57,15 +49,12 @@ class InferencePipeline:
         self.autoencoder.eval()
         self.autoencoder.to(self.device)
         
-        # Load feature extractor
         print(f"  Loading feature extractor from: {self.FEATURE_EXTRACTOR_PATH}")
         self.feature_extractor = FeatureExtractor.load(self.FEATURE_EXTRACTOR_PATH)
         
-        # Load clusterizer
         print(f"  Loading clusterizer from: {self.CLUSTERIZER_PATH}")
         self.clusterizer = Clusterizer.load(self.CLUSTERIZER_PATH)
         
-        # Load scaler
         print(f"  Loading scaler from: {self.SCALER_PATH}")
         self.scaler = joblib.load(self.SCALER_PATH)
         
@@ -90,14 +79,12 @@ class InferencePipeline:
         return int(cluster_id)
 
     def load_inpainter(self, cluster_id: int) -> tuple[ConvLatentInpainter, bool]:
-        # Try cluster-specific inpainter first
         inpainter_path = Path(self.INPAINTER_DIR) / self.INPAINTER_PATTERN.format(
             cluster_id=cluster_id
         )
         
         is_common = False
         if not inpainter_path.exists():
-            # Fall back to common inpainter
             common_path = Path(self.COMMON_INPAINTER_PATH)
             if not common_path.exists():
                 raise FileNotFoundError(
