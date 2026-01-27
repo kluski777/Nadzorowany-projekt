@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
 from dotenv import load_dotenv
+from utils.visualize import visualize_inpainter
 
 from models.inpainter import ConvLatentInpainter
 from data.inpainter_module import LatentInpainterDataModule
@@ -33,16 +34,21 @@ def train_inpainter(
         batch_size=inpainter_config.get("batch_size", 64),
         num_workers=config["data"].get("num_workers", 4),
     )
-
+    
     model = ConvLatentInpainter(
         latent_channels=inpainter_config.get("latent_channels", config["model"]["latent_channels"]),
         hidden_channels=inpainter_config.get("hidden_channels", 256),
         num_blocks=inpainter_config.get("num_blocks", 4),
-        learning_rate=inpainter_config.get("learning_rate", 0.001),
+        learning_rate=inpainter_config.get("learning_rate", 1e-3),
         scheduler_patience=config["training"].get("lr_scheduler_patience", 5),
         scheduler_factor=config["training"].get("lr_scheduler_factor", 0.5),
-        loss_type=inpainter_config.get("loss_type", "mse"),
+        reconstructed_loss_type=inpainter_config.get("reconstructed_loss_type", "charbonnier"),
+        reconstructed_loss_weight=inpainter_config.get("reconstructed_loss_weight", 2),
+        latent_loss_type=inpainter_config.get("latent_loss_type", "charbonnier"),
+        ae_path=config["model"].get("pretrained_checkpoint", "No_argument"),
+        architecture=config["model"].get("architecture", "res_convt")
     )
+    
     print(f"\nModel architecture:\n{model}\n")
 
     checkpoint_callback = ModelCheckpoint(
@@ -100,10 +106,9 @@ def train_inpainter(
     if checkpoint_path:
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
         model.load_state_dict(checkpoint)
-        trainer.fit(model, data_module)
-    else:
-        trainer.fit(model, data_module)
-
+    
+    trainer.fit(model, data_module)
+    
     print("\nTraining completed!")
     print(f"Best model path: {checkpoint_callback.best_model_path}")
 
@@ -132,5 +137,7 @@ def train_inpainter(
         )
         print(f"Model logged to Comet ML: inpainter-{model_name}-final")
         logger.experiment.end()
+    
+    visualize_inpainter(model, data_module, num_samples=8)
 
     return checkpoint_callback.best_model_path

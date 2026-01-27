@@ -1,8 +1,10 @@
 import comet_ml  # type: ignore # noqa: F401 (import comet_ml before pytorch)
 import argparse
+import torch
 
 from utils import load_config
 
+torch.set_float32_matmul_precision('medium')
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -262,6 +264,22 @@ def parse_args():
         help="Path to checkpoint file (.ckpt) to resume training from",
     )
 
+    parser_train_superresolution = subparsers.add_parser(
+        "train_superresolution", help="Train superresolution on original images using bicubic downsampling"
+    )
+    parser_train_superresolution.add_argument(
+        '--config',
+        type=str,
+        default='config.yaml',
+        help="Path to configuration YAML file (default: config.yaml)"
+    )
+    parser_train_superresolution.add_argument(
+        '--checkpoint',
+        type=str,
+        default=None,
+        help="Path to checkpoint file (.ckpt) to resume training from"
+    )
+
     return parser.parse_args(), parser
 
 
@@ -376,7 +394,7 @@ def cmd_fit_clusterizer(args):
 
 
 def cmd_generate_components(args):
-    from data import generate_latent_components
+    from data.generate_latent_components import generate_latent_components
 
     print("Started generating latent components")
 
@@ -391,7 +409,7 @@ def cmd_generate_components(args):
 
 
 def cmd_generate_clusters(args):
-    from data import generate_clusters
+    from data.generate_clusters import generate_clusters
 
     print("Started generating clusters")
 
@@ -424,6 +442,14 @@ def cmd_train_inpainter(args):
     )
 
 
+def cmd_train_superresolution(args):
+    from training.train_superresolution import train_superresolution
+
+    config = load_config(args.config)
+
+    train_superresolution(config=config, checkpoint_path=args.checkpoint) # pomysli sie nad argumentami
+
+
 def run():
     args, parser = parse_args()
     match args.command:
@@ -449,6 +475,8 @@ def run():
             cmd_generate_clusters(args)
         case "train_inpainter":
             cmd_train_inpainter(args)
+        case "train_superresolution":
+            cmd_train_superresolution(args)
         case _:
             parser.print_help()
 

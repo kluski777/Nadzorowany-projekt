@@ -131,3 +131,59 @@ def apply_cut_reproducible(image, seed):
         image_to_ret = image.clone()
         image_to_ret[:, h_indices, w_indices] = 0.0
         return image_to_ret
+
+
+def apply_cut_reproducible_with_mask(image, seed):
+    """
+    Apply a cut to an image deterministically and return both the masked image and the mask.
+    
+    Args:
+        image: Tensor of shape (C, H, W)
+        seed: Integer seed for reproducibility
+    
+    Returns:
+        tuple: (masked_image, mask) where:
+            - masked_image: Tensor of shape (C, H, W) with cut applied
+            - mask: Tensor of shape (H, W) where 1.0 = kept pixel, 0.0 = masked pixel
+    """
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    
+    C, H, W = image.shape
+    mask = torch.ones((H, W), dtype=torch.float32)  # 1.0 = keep, 0.0 = masked
+    
+    choice = torch.rand(1, generator=generator).item()
+    
+    if choice < 0.33:
+        # No cut
+        return image, mask
+    elif choice < 0.66:
+        # Regular cut
+        size_h, size_w = H // 4, W // 4
+        start_h = torch.randint(0, max(1, H - size_h), (1,), generator=generator).item() if H > size_h else 0
+        start_w = torch.randint(0, max(1, W - size_w), (1,), generator=generator).item() if W > size_w else 0
+        
+        mask[start_h : start_h + size_h, start_w : start_w + size_w] = 0.0
+        
+        image_to_ret = image.clone()
+        image_to_ret[:, start_h : start_h + size_h, start_w : start_w + size_w] = 0.0
+        return image_to_ret, mask
+    else:
+        # Irregular cut
+        cut_points_num = (H * W) // 8
+        
+        center_h = torch.rand(1, generator=generator).item() * H
+        center_w = torch.rand(1, generator=generator).item() * W
+        
+        scaling = H // 16
+        offsets_h = torch.randn(cut_points_num, generator=generator) * scaling
+        offsets_w = torch.randn(cut_points_num, generator=generator) * scaling
+        
+        h_indices = ((offsets_h + center_h).long() % H).clamp(0, H - 1)
+        w_indices = ((offsets_w + center_w).long() % W).clamp(0, W - 1)
+        
+        mask[h_indices, w_indices] = 0.0
+        
+        image_to_ret = image.clone()
+        image_to_ret[:, h_indices, w_indices] = 0.0
+        return image_to_ret, mask

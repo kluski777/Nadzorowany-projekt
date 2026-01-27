@@ -19,7 +19,7 @@ class Compressor(nn.Module):
         return self.network(x)
 
 
-class Decompressor(nn.Module):
+class Decompressor(nn.Module): # kopia Compressora
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
         self.network = nn.Sequential(
@@ -350,8 +350,10 @@ class FinalAutoEncoder2k(pl.LightningModule):
 
         from models.autoencoder.architectures.residual_convt import Encoder, Decoder
 
+        # tu nic do zarzucenia
         self.encoder = Encoder(input_channels=input_channels, latent_channels=128)
         self.decoder = Decoder(latent_channels=128, output_channels=input_channels)
+        # Compressor i Decompressor maja kernel = 1.
         self.compressor_128_64 = Compressor(128, 64)
         self.decompressor_64_128 = Decompressor(64, 128)
         self.compressor_64_32 = Compressor(64, 32)

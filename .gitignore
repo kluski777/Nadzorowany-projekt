@@ -227,8 +227,12 @@ lightning_logs/
 *.pth
 *.pt
 
-# Data
+# Data dla pewnosci jeszcze csv
+*.csv
 data/
 !src/data/
 !data/splits/
 !data/splits/*
+
+# Splitsow nie chcemy na githubie
+src/data/Artificio___wiki_art_full/

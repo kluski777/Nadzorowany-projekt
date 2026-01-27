@@ -10,7 +10,7 @@ import joblib
 from models import get_autoencoder, FeatureExtractor, Clusterizer
 from data.module import WikiArtDataModule
 from utils import load_config, load_latent_spaces
-from utils.cutting import apply_cut_reproducible
+from utils.cutting import apply_cut_reproducible_with_mask
 from utils.device import get_device
 
 def _get_cutting_seed(config: dict, cutting_seed: Optional[int] = None) -> int:
@@ -23,7 +23,7 @@ def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: i
     data_module = WikiArtDataModule(
         batch_size=batch_size,
         num_workers=0,
-        image_size=config["data"]["image_size"],
+        image_size=224, # Force 224 as per user requirement for the standard pipeline
         data_dir=config["data"]["data_dir"],
         seed=seed,
         splits_dir=config["data"]["splits_dir"],
@@ -77,10 +77,12 @@ def _process_split(
     model: pl.LightningModule,
     device: torch.device,
     cutting_seed: int,
-) -> Tuple[List[int], np.ndarray, np.ndarray, int]:
+) -> Tuple[List[int], np.ndarray, np.ndarray, np.ndarray, np.array, int]:
     image_indices = []
     latent_full_list = []
     latent_cut_list = []
+    images_list = []
+    masks_list = []
     error_count = 0
 
     with torch.inference_mode():
@@ -88,15 +90,18 @@ def _process_split(
             try:
                 image = full_dataset[idx]["image"]
                 image_tensor = data_module.transform(image).unsqueeze(0).to(device)
-                
+
                 latent_full = model.encode(image_tensor).squeeze(0).cpu().numpy()
                 
-                image_cut = apply_cut_reproducible(image_tensor.squeeze(0).cpu(), cutting_seed + idx)
+                image_cut, mask = apply_cut_reproducible_with_mask(image_tensor.squeeze(0).cpu(), cutting_seed + idx)
                 latent_cut = model.encode(image_cut.unsqueeze(0).to(device)).squeeze(0).cpu().numpy()
-                
+
                 image_indices.append(idx)
                 latent_full_list.append(latent_full)
                 latent_cut_list.append(latent_cut)
+
+                images_list.append(image_tensor.squeeze(0).cpu().numpy())
+                masks_list.append(mask.numpy())
             except Exception as e:
                 print(f"\nError processing image {idx} in {split_name}: {e}")
                 error_count += 1
@@ -105,6 +110,8 @@ def _process_split(
         image_indices,
         np.stack(latent_full_list, axis=0),
         np.stack(latent_cut_list, axis=0),
+        np.stack(images_list, axis=0),
+        np.stack(masks_list, axis=0),
         error_count,
     )
 
@@ -114,21 +121,26 @@ def _save_latent_spaces(
     indices: np.ndarray,
     target_latent: np.ndarray,
     masked_latent: np.ndarray,
+    cut_images: np.ndarray,
+    masks: np.ndarray,
     clusters: Optional[np.ndarray] = None,
 ) -> None:
     save_dict = {
         "indices": indices,
         "target_latent": target_latent,
         "masked_latent": masked_latent,
+        "images": cut_images,
+        "masks": masks,
     }
     if clusters is not None:
         save_dict["cluster"] = clusters
 
-    np.savez_compressed(output_file, **save_dict)
+    np.savez(output_file, **save_dict)
     
     size_mb = output_file.stat().st_size / 1024 / 1024
     print(f"Saved {output_file} ({size_mb:.2f} MB)")
     print(f"  Shape: target_latent={target_latent.shape}, masked_latent={masked_latent.shape}")
+    print(f"  Shape: raw_images={cut_images.shape}, raw_masks={masks.shape}")
     if clusters is not None:
         print(f"  Clusters: {len(np.unique(clusters))} unique")
 
@@ -157,7 +169,7 @@ def _add_clusters_to_existing_files(
         
         save_dict = {key: data[key] for key in data.files}
         save_dict["cluster"] = clusters
-        np.savez_compressed(split_file, **save_dict)
+        np.savez(split_file, **save_dict)
         
         size_mb = split_file.stat().st_size / 1024 / 1024
         print(f"  Saved ({size_mb:.2f} MB), {len(np.unique(clusters))} unique clusters")
@@ -238,7 +250,7 @@ def generate_latent_spaces(
         print(f"Processing {split_name} split ({len(indices)} images)")
         print(f"{'=' * 60}")
         
-        image_indices, target_latent, masked_latent, errors = _process_split(
+        image_indices, target_latent, masked_latent, cut_images, masks, errors = _process_split(
             split_name, indices, full_dataset, data_module, model, device, cutting_seed
         )
         
@@ -252,6 +264,8 @@ def generate_latent_spaces(
             np.array(image_indices, dtype=np.int64),
             target_latent,
             masked_latent,
+            cut_images,
+            masks,
             clusters,
         )
         

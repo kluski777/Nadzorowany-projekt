@@ -38,14 +38,14 @@ class InferencePipeline:
         print("Loading models...")
         
         print(f"  Loading autoencoder from: {self.AUTOENCODER_PATH}")
-        # self.autoencoder = FinalAutoEncoder2k.load_from_checkpoint(
-        #     self.AUTOENCODER_PATH,
-        #     map_location=self.device,
-        # )
-        self.autoencoder = PixelShuffleResidualAE.load_from_checkpoint(
+        self.autoencoder = FinalAutoEncoder2k.load_from_checkpoint(
             self.AUTOENCODER_PATH,
             map_location=self.device,
         )
+        # self.autoencoder = PixelShuffleResidualAE.load_from_checkpoint(
+        #     self.AUTOENCODER_PATH,
+        #     map_location=self.device,
+        # )
         self.autoencoder.eval()
         self.autoencoder.to(self.device)
         
@@ -106,6 +106,7 @@ class InferencePipeline:
         
         return inpainter, is_common
 
+    # tutaj jeszcze Superresolution
     def postprocess(self, tensor: torch.Tensor) -> Image.Image:
         tensor = tensor.squeeze(0).cpu()
         tensor = torch.clamp(tensor, 0, 1)

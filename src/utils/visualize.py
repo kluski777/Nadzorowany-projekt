@@ -11,6 +11,49 @@ from .cluster import load_clusters
 from .device import get_device
 
 
+def visualize_inpainter(
+    inpainter,
+    data_module,
+    num_samples: int = 8,
+    output_path: str = "reconstruction_results.png",
+):
+    inpainter.eval()
+    val_loader = data_module.val_dataloader()
+    
+    # Collect samples with masked regions
+    valid_targets, valid_masked = [], []
+    
+    for batch in val_loader:
+        mask = batch["mask"]
+        valid_idx = [(mask[i] == 0).sum() > 0 for i in range(len(mask))]
+        
+        valid_targets.extend(batch["target_latent"][valid_idx])
+        valid_masked.extend(batch["masked_latent"][valid_idx])
+        
+        if len(valid_targets) >= num_samples:
+            break
+    
+    target = torch.stack(valid_targets[:num_samples])
+    to_transform = torch.stack(valid_masked[:num_samples]).to('cpu')
+    
+    inpainter = inpainter.to('cpu')
+    inpainted_latent = inpainter(to_transform)
+    reconstructed = inpainter.autoencoder.decode(inpainted_latent).cpu().detach()
+    target = inpainter.autoencoder.decode(target).cpu().detach()
+    
+    _, axes = plt.subplots(2, num_samples, figsize=(20, 5))
+    for i in range(num_samples):
+        for row, (img, title) in enumerate([(target, "Target"), (reconstructed, "Reconstructed")]):
+            axes[row, i].imshow(np.clip(img[i].permute(1, 2, 0).numpy(), 0, 1), extent=[0, 256, 0, 256])
+            axes[row, i].axis("off")
+            if i == 0:
+                axes[row, i].set_title(title, fontsize=12)
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.show()
+
+
 def visualize_results(
     model,
     data_module,
@@ -25,6 +68,7 @@ def visualize_results(
 
     device = get_device()
     images = images.to(device)
+    model = model.to(device)
 
     with torch.inference_mode():
         reconstructed = model(images)
@@ -38,13 +82,13 @@ def visualize_results(
 
     for i in range(num_samples):
         img_orig = images[i].permute(1, 2, 0).numpy()
-        axes[0, i].imshow(np.clip(img_orig, 0, 1))
+        axes[0, i].imshow(np.clip(img_orig, 0, 1), extent=[0, 256, 0, 256])
         axes[0, i].axis("off")
         if i == 0:
             axes[0, i].set_title("Original", fontsize=12)
 
         img_recon = reconstructed[i].permute(1, 2, 0).numpy()
-        axes[1, i].imshow(np.clip(img_recon, 0, 1))
+        axes[1, i].imshow(np.clip(img_recon, 0, 1), extent=[0, 256, 0, 256])
         axes[1, i].axis("off")
         if i == 0:
             axes[1, i].set_title("Reconstructed", fontsize=12)

@@ -19,13 +19,14 @@ cutting:
   seed: null # null to use experiment.seed
 
 model:
-  architecture: "final_2k"
+  architecture: "res_convt"
   input_channels: 3
-  latent_channels: 32 # 8192
+  latent_channels: 128 # 8192
   learning_rate: 0.001
   loss_type: "mse" # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
-  # Bottleneck training settings
   variant: "4k" # Options: "4k", "2k", "1k"
+
+  # inpainter is using this path to train as well
   pretrained_checkpoint: "checkpoints/autoencoder-10k-CT-Residual-mse-latent8k-final-22301.ckpt"
 
 training:
@@ -36,16 +37,29 @@ training:
   lr_scheduler_factor: 0.5
 
 experiment:
-  name: "latent-space-inpainter-ae-latent2k"
+  name: "latent-space-inpainter-latent8k"
   seed: 42 # Seed for training reproducibility
-  visualization_samples: 8
+  visualization_samples: 8 # this is used for superresolution also
   recon_log_every_n_epochs: 5
 
 inpainter:
-  latent_channels: 32 # Should match model.latent_channels
+  latent_channels: 128 # Should match model.latent_channels
   hidden_channels: 256
-  num_blocks: 4
-  learning_rate: 0.001
-  loss_type: "mse" # Options: "mse", "mae", "huber"
+  num_blocks: 12
+  learning_rate: 0.0005
+  reconstructed_loss_type: "charbonnier" # Maybe in the future perceptual loss if needed
+  reconstructed_loss_weight: 0.3
+  latent_loss_type: "charbonnier" # Options: "mse", "mae", "huber", "charbonnier"
   batch_size: 64
-  max_epochs: 100
+  max_epochs: 200
+
+superresolution:
+  name: 'fourier'
+  batch_size: 64
+  learning_rate: 3.5e-4
+  loss_type: "charbonnier" # Options: "mae", "charbonnier", "SSIM"
+  max_epochs: 200
+  scheduler_factor: 0.7 # mniejszy od 1
+  scheduler_patience: 4 # poki co jakies duze
+  training_image_size: 64
+  blurring: 'Gausssian'

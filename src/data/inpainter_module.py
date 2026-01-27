@@ -4,7 +4,9 @@ from typing import Optional
 import numpy as np
 import pytorch_lightning as pl
 import torch
+from torchvision import models
 from torch.utils.data import Dataset, DataLoader
+# Chemy masek to jest wazne bo musimy wczytac oryginalne zdjecia i maski.
 
 
 class LatentInpainterDataset(Dataset):
@@ -18,51 +20,46 @@ class LatentInpainterDataset(Dataset):
         self.split = split
         self.cluster_id = cluster_id
         
-        npz_path = self.latent_dir / f"{split}.npz"
-        if not npz_path.exists():
-            raise FileNotFoundError(f"Latent space file not found: {npz_path}")
+        self.npz_path = self.latent_dir / f"{split}.npz"
+        if not self.npz_path.exists():
+            raise FileNotFoundError(f"Latent space file not found: {self.npz_path}")
         
-        data = np.load(npz_path)
+        # Open with mmap_mode='r' to avoid loading everything into RAM
+        # Note: requires the npz to be saved without compression (np.savez instead of np.savez_compressed)
+        self.data = np.load(self.npz_path, mmap_mode='r')
+
+        self.latent_masked = self.data["masked_latent"]
+        self.latent_target = self.data["target_latent"]
+        self.images = self.data["images"]
+        self.masks = self.data["masks"]
         
-        self.masked_latent = data["masked_latent"]
-        self.target_latent = data["target_latent"]
-        self.indices = data["indices"]
+        # Filtering indices
+        if cluster_id is not None and "cluster" in self.data.files:
+            clusters = self.data["cluster"]
+            self.valid_indices = np.where(clusters == cluster_id)[0]
+        else:
+            self.valid_indices = np.arange(len(self.latent_masked))
         
-        has_clusters = "cluster" in data.files
-        self.clusters = data["cluster"] if has_clusters else None
-        
-        if cluster_id is not None:
-            if not has_clusters:
-                raise ValueError(
-                    f"cluster_id={cluster_id} specified, but the latent space file "
-                    f"'{npz_path}' does not contain cluster labels. "
-                    "Regenerate latent spaces with --feature-extractor-checkpoint and "
-                    "--clusterizer-checkpoint to include cluster labels."
-                )
-            mask = self.clusters == cluster_id
-            self.masked_latent = self.masked_latent[mask]
-            self.target_latent = self.target_latent[mask]
-            self.clusters = self.clusters[mask]
-            self.indices = self.indices[mask]
-        
-        cluster_info = ""
-        if cluster_id is not None:
-            cluster_info = f" (cluster {cluster_id})"
-        elif not has_clusters:
-            cluster_info = " (no cluster labels)"
-        
-        print(f"Loaded {len(self)} samples from {split} split{cluster_info}")
+        cluster_info = f" (cluster {cluster_id})" if cluster_id is not None else ""
+        print(f"Loaded {len(self)} samples from {split} split{cluster_info} (Memory Mapped)")
 
     def __len__(self) -> int:
-        return len(self.masked_latent)
+        return len(self.valid_indices)
 
     def __getitem__(self, idx: int) -> dict:
-        masked = torch.from_numpy(self.masked_latent[idx]).float()
-        target = torch.from_numpy(self.target_latent[idx]).float()
+        real_idx = self.valid_indices[idx]
         
+        # These are read from disk on-the-fly due to mmap_mode to save RAM
+        masked_latent = torch.from_numpy(self.latent_masked[real_idx]).float()
+        target_latent = torch.from_numpy(self.latent_target[real_idx]).float()
+        image = torch.from_numpy(self.images[real_idx]).float()
+        mask = torch.from_numpy(self.masks[real_idx]).long()
+
         return {
-            "masked_latent": masked,
-            "target_latent": target,
+            "masked_latent": masked_latent,
+            "target_latent": target_latent,
+            "image": image,
+            "mask": mask
         }
 
 
@@ -80,30 +77,27 @@ class LatentInpainterDataModule(pl.LightningDataModule):
         self.cluster_id = cluster_id
         self.batch_size = batch_size
         self.num_workers = num_workers
-        
+
         self.train_dataset: Optional[LatentInpainterDataset] = None
         self.val_dataset: Optional[LatentInpainterDataset] = None
         self.test_dataset: Optional[LatentInpainterDataset] = None
 
     def setup(self, stage: Optional[str] = None):
-        if stage == "fit" or stage is None:
-            self.train_dataset = LatentInpainterDataset(
-                latent_dir=self.latent_dir,
-                split="train",
-                cluster_id=self.cluster_id,
-            )
-            self.val_dataset = LatentInpainterDataset(
-                latent_dir=self.latent_dir,
-                split="val",
-                cluster_id=self.cluster_id,
-            )
-        
-        if stage == "test" or stage is None:
-            self.test_dataset = LatentInpainterDataset(
-                latent_dir=self.latent_dir,
-                split="test",
-                cluster_id=self.cluster_id,
-            )
+        self.train_dataset = LatentInpainterDataset(
+            latent_dir=self.latent_dir,
+            split="train",
+            cluster_id=self.cluster_id,
+        )
+        self.val_dataset = LatentInpainterDataset(
+            latent_dir=self.latent_dir,
+            split="val",
+            cluster_id=self.cluster_id,
+        )
+        self.test_dataset = LatentInpainterDataset(
+            latent_dir=self.latent_dir,
+            split="test",
+            cluster_id=self.cluster_id,
+        )
 
         if stage == "fit" or stage is None:
             print(f"\n{'=' * 60}")

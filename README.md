@@ -72,6 +72,7 @@ This creates `train.npz`, `val.npz`, and `test.npz` files containing:
 - `indices`: Image indices
 - `masked_latent`: Latent space of masked images (shape: `[n_samples, latent_channels, 8, 8]`)
 - `target_latent`: Latent space of original images (shape: `[n_samples, latent_channels, 8, 8]`)
+- `images`: masks coming out from the encoder.
 
 ### Step 4: Train Feature Extractor
 
@@ -159,9 +160,9 @@ Train a separate inpainter model for each cluster:
 ```bash
 # Train inpainter for cluster 0
 uv run src/main.py train_inpainter \
-    --config config.yaml \
+   --config config.yaml \
     --cluster-id 0 \
-    --latent-dir data/latent_spaces
+    --latent-dir data/latent_spaces 
 
 # Train inpainter for cluster 1
 uv run src/main.py train_inpainter \

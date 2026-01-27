@@ -64,6 +64,10 @@ def mae_loss(predictions: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     return F.l1_loss(predictions, targets)
 
 
+def charbonnier_loss(predictions: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    return torch.mean(torch.sqrt(torch.square(predictions - targets) + 1e-6))
+
+
 def huber_loss(predictions: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     return F.huber_loss(predictions, targets)
 
@@ -124,6 +128,7 @@ def get_loss_function(loss_type: str) -> Callable[[torch.Tensor, torch.Tensor], 
         "combined_mse_bce": combined_mse_bce_loss,
         "combined_l1_bce_loss": combined_l1_bce_loss,
         "vae_bce_kl": vae_bce_kl_loss,
+        "charbonnier": charbonnier_loss
     }
 
     if loss_type not in loss_functions:

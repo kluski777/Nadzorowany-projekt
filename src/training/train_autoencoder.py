@@ -7,7 +7,7 @@ from pytorch_lightning.loggers import CometLogger
 from dotenv import load_dotenv
 
 from models import get_autoencoder
-from data import WikiArtDataModule
+from data.module import WikiArtDataModule
 from utils import visualize_results
 from callbacks import ReconstructionLogger, EpochShuffleCallback, CometModelUploadCallback
 
