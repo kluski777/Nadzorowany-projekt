@@ -13,6 +13,7 @@ from utils import load_config, load_latent_spaces
 from utils.cutting import apply_cut_reproducible_with_mask
 from utils.device import get_device
 
+
 def _get_cutting_seed(config: dict, cutting_seed: Optional[int] = None) -> int:
     if cutting_seed is not None:
         return cutting_seed
@@ -23,7 +24,7 @@ def _setup_data_module(config: dict, seed: int, cutting_seed: int, batch_size: i
     data_module = WikiArtDataModule(
         batch_size=batch_size,
         num_workers=0,
-        image_size=224, # Force 224 as per user requirement for the standard pipeline
+        image_size=config["data"]["image_size"],
         data_dir=config["data"]["data_dir"],
         seed=seed,
         splits_dir=config["data"]["splits_dir"],
@@ -46,14 +47,14 @@ def _load_clustering_models(
 ) -> Tuple[FeatureExtractor, Clusterizer, object]:
     print(f"Loading feature extractor from: {feature_extractor_path}")
     feature_extractor = FeatureExtractor.load(feature_extractor_path)
-    
+
     print(f"Loading clusterizer from: {clusterizer_path}")
     clusterizer = Clusterizer.load(clusterizer_path)
-    
+
     scaler_path = Path(clusterizer_path).parent / "scaler.pkl"
     print(f"Loading scaler from: {scaler_path}")
     scaler = joblib.load(scaler_path)
-    
+
     return feature_extractor, clusterizer, scaler
 
 
@@ -92,7 +93,7 @@ def _process_split(
                 image_tensor = data_module.transform(image).unsqueeze(0).to(device)
 
                 latent_full = model.encode(image_tensor).squeeze(0).cpu().numpy()
-                
+
                 image_cut, mask = apply_cut_reproducible_with_mask(image_tensor.squeeze(0).cpu(), cutting_seed + idx)
                 latent_cut = model.encode(image_cut.unsqueeze(0).to(device)).squeeze(0).cpu().numpy()
 
@@ -136,7 +137,7 @@ def _save_latent_spaces(
         save_dict["cluster"] = clusters
 
     np.savez(output_file, **save_dict)
-    
+
     size_mb = output_file.stat().st_size / 1024 / 1024
     print(f"Saved {output_file} ({size_mb:.2f} MB)")
     print(f"  Shape: target_latent={target_latent.shape}, masked_latent={masked_latent.shape}")
@@ -152,29 +153,29 @@ def _add_clusters_to_existing_files(
     scaler,
 ) -> int:
     total_processed = 0
-    
+
     for split_name in ["train", "val", "test"]:
         print(f"\n{'=' * 60}")
         print(f"Processing {split_name} split")
         print(f"{'=' * 60}")
-        
+
         split_file = output_path / f"{split_name}.npz"
         data = load_latent_spaces(str(output_path), split_name)
-        
+
         target_latent = data["target_latent"]
         print(f"  Loaded {len(target_latent)} latent spaces, shape: {target_latent.shape}")
-        
+
         print("  Computing cluster assignments...")
         clusters = _compute_clusters(target_latent, feature_extractor, clusterizer, scaler)
-        
+
         save_dict = {key: data[key] for key in data.files}
         save_dict["cluster"] = clusters
         np.savez(split_file, **save_dict)
-        
+
         size_mb = split_file.stat().st_size / 1024 / 1024
         print(f"  Saved ({size_mb:.2f} MB), {len(np.unique(clusters))} unique clusters")
         total_processed += len(target_latent)
-    
+
     return total_processed
 
 
@@ -189,19 +190,19 @@ def generate_latent_spaces(
 ):
     print(f"Loading configuration from: {config_path}")
     config = load_config(config_path)
-    
+
     seed = config["experiment"]["seed"]
     pl.seed_everything(seed, workers=True)
-    
+
     cutting_seed = _get_cutting_seed(config, cutting_seed)
     print(f"Using cutting seed: {cutting_seed}")
-    
+
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     print(f"Output directory: {output_path}")
-    
+
     enable_clustering = feature_extractor_checkpoint is not None and clusterizer_checkpoint is not None
-    
+
     if enable_clustering:
         all_splits_exist = all((output_path / f"{s}.npz").exists() for s in ["train", "val", "test"])
         if all_splits_exist:
@@ -214,17 +215,17 @@ def generate_latent_spaces(
             print(f"Cluster assignment complete! Total processed: {total}")
             print(f"{'=' * 60}\n")
             return
-    
+
     data_module = _setup_data_module(config, seed, cutting_seed, batch_size)
-    
+
     print("Loading splits...")
     _, train_indices, val_indices, test_indices = data_module._load_splits_from_csv()
-    
+
     device = get_device()
     print(f"Using device: {device}")
     print(f"Loading model from checkpoint: {checkpoint_path}")
     model = _load_model(checkpoint_path, config, device)
-    
+
     feature_extractor, clusterizer, scaler = None, None, None
     if enable_clustering:
         feature_extractor, clusterizer, scaler = _load_clustering_models(
@@ -232,33 +233,33 @@ def generate_latent_spaces(
         )
     else:
         print("No feature extractor/clusterizer provided - generating without cluster labels")
-    
+
     print("Loading full dataset...")
     full_dataset = load_dataset(
         "Artificio/WikiArt_Full",
         cache_dir=str(data_module.data_dir),
         split="train",
     )
-    
+
     total_processed = 0
     total_errors = 0
-    
+
     splits = [("train", train_indices), ("val", val_indices), ("test", test_indices)]
-    
+
     for split_name, indices in splits:
         print(f"\n{'=' * 60}")
         print(f"Processing {split_name} split ({len(indices)} images)")
         print(f"{'=' * 60}")
-        
+
         image_indices, target_latent, masked_latent, cut_images, masks, errors = _process_split(
             split_name, indices, full_dataset, data_module, model, device, cutting_seed
         )
-        
+
         clusters = None
         if enable_clustering:
             print("Computing cluster assignments...")
             clusters = _compute_clusters(target_latent, feature_extractor, clusterizer, scaler)
-        
+
         _save_latent_spaces(
             output_path / f"{split_name}.npz",
             np.array(image_indices, dtype=np.int64),
@@ -268,11 +269,11 @@ def generate_latent_spaces(
             masks,
             clusters,
         )
-        
+
         total_processed += len(image_indices)
         total_errors += errors
         print(f"  Completed: {len(image_indices)} processed, {errors} errors")
-    
+
     print(f"\n{'=' * 60}")
     print("Generation complete!")
     print(f"  Total processed: {total_processed}, errors: {total_errors}")
