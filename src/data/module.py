@@ -46,6 +46,7 @@ class WikiArtDataset(IterableDataset):
             if self.transform:
                 image = self.transform(image)
 
+            target = image
             if self.enable_cutting:
                 if self.cutting_mode == "reproducible":
                     seed = self.cutting_seed + sample_index
@@ -53,7 +54,7 @@ class WikiArtDataset(IterableDataset):
                 else:
                     image = apply_cut(image)
 
-            yield {"image": image}
+            yield {"image": image, "target": target}
             sample_index += 1
 
 

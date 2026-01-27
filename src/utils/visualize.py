@@ -21,7 +21,7 @@ def visualize_inpainter(
     val_loader = data_module.val_dataloader()
     
     # Collect samples with masked regions
-    valid_targets, valid_masked = [], []
+    valid_targets, valid_masked, valid_images, valid_masks = [], [], [], []
     
     for batch in val_loader:
         mask = batch["mask"]
@@ -29,22 +29,34 @@ def visualize_inpainter(
         
         valid_targets.extend(batch["target_latent"][valid_idx])
         valid_masked.extend(batch["masked_latent"][valid_idx])
+        valid_images.extend(batch["image"][valid_idx])
+        valid_masks.extend(batch["mask"][valid_idx])
         
         if len(valid_targets) >= num_samples:
             break
     
-    target = torch.stack(valid_targets[:num_samples])
+    target_latent = torch.stack(valid_targets[:num_samples])
     to_transform = torch.stack(valid_masked[:num_samples]).to('cpu')
+    images = torch.stack(valid_images[:num_samples]).cpu()
+    masks = torch.stack(valid_masks[:num_samples]).cpu()
+    
+    corrupted = images * masks.unsqueeze(1)
     
     inpainter = inpainter.to('cpu')
-    inpainted_latent = inpainter(to_transform)
-    reconstructed = inpainter.autoencoder.decode(inpainted_latent).cpu().detach()
-    target = inpainter.autoencoder.decode(target).cpu().detach()
+    with torch.no_grad():
+        inpainted_latent = inpainter(to_transform)
+        reconstructed = inpainter.autoencoder.decode(inpainted_latent).cpu()
+        target_imgs = inpainter.autoencoder.decode(target_latent).cpu()
     
-    _, axes = plt.subplots(2, num_samples, figsize=(20, 5))
+    _, axes = plt.subplots(3, num_samples, figsize=(20, 8))
     for i in range(num_samples):
-        for row, (img, title) in enumerate([(target, "Target"), (reconstructed, "Reconstructed")]):
-            axes[row, i].imshow(np.clip(img[i].permute(1, 2, 0).numpy(), 0, 1), extent=[0, 256, 0, 256])
+        display_data = [
+            (target_imgs[i], "Target (AE)"),
+            (corrupted[i], "Corrupted (Cut)"),
+            (reconstructed[i], "Reconstructed")
+        ]
+        for row, (img, title) in enumerate(display_data):
+            axes[row, i].imshow(np.clip(img.permute(1, 2, 0).numpy(), 0, 1))
             axes[row, i].axis("off")
             if i == 0:
                 axes[row, i].set_title(title, fontsize=12)
@@ -65,6 +77,7 @@ def visualize_results(
     val_loader = data_module.val_dataloader()
     batch = next(iter(val_loader))
     images = batch["image"][:num_samples]
+    targets = batch.get("target", images)[:num_samples]
 
     device = get_device()
     images = images.to(device)
@@ -76,22 +89,22 @@ def visualize_results(
             reconstructed = reconstructed[0]
 
     images = images.cpu()
+    targets = targets.cpu()
     reconstructed = reconstructed.cpu()
 
-    _, axes = plt.subplots(2, num_samples, figsize=(20, 5))
+    _, axes = plt.subplots(3, num_samples, figsize=(20, 8))
 
     for i in range(num_samples):
-        img_orig = images[i].permute(1, 2, 0).numpy()
-        axes[0, i].imshow(np.clip(img_orig, 0, 1), extent=[0, 256, 0, 256])
-        axes[0, i].axis("off")
-        if i == 0:
-            axes[0, i].set_title("Original", fontsize=12)
-
-        img_recon = reconstructed[i].permute(1, 2, 0).numpy()
-        axes[1, i].imshow(np.clip(img_recon, 0, 1), extent=[0, 256, 0, 256])
-        axes[1, i].axis("off")
-        if i == 0:
-            axes[1, i].set_title("Reconstructed", fontsize=12)
+        display_data = [
+            (targets[i], "Target"),
+            (images[i], "Input"),
+            (reconstructed[i], "Reconstructed")
+        ]
+        for row, (img, title) in enumerate(display_data):
+            axes[row, i].imshow(np.clip(img.permute(1, 2, 0).numpy(), 0, 1))
+            axes[row, i].axis("off")
+            if i == 0:
+                axes[row, i].set_title(title, fontsize=12)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")

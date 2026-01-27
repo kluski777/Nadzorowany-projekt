@@ -107,10 +107,13 @@ class ConvLatentInpainter(pl.LightningModule):
         self.pixel_shuffle = nn.PixelShuffle(self.pixel_shuffle_val)
         self.network = GatedUNet(latent_channels // self.pixel_shuffle_val**2, hidden_channels, depth=num_blocks, kernel_size=3, dilation=1)
         self.unshuffle = nn.PixelUnshuffle(self.pixel_shuffle_val)
-        # How to frozen that guy over there
-        self.autoencoder = get_autoencoder(architecture).load_from_checkpoint(ae_path)
-        self.autoencoder.requires_grad_(False)
-        self.autoencoder.eval()
+        
+        if ae_path and ae_path != "No_argument":
+            self.autoencoder = get_autoencoder(architecture).load_from_checkpoint(ae_path)
+            self.autoencoder.requires_grad_(False)
+            self.autoencoder.eval()
+        else:
+            self.autoencoder = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         shuffled = self.pixel_shuffle(x)

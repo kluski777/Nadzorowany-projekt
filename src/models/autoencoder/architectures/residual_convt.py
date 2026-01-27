@@ -87,22 +87,20 @@ class ResidualConvtAutoEncoder(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         images = batch["image"]
+        targets = batch.get("target", images)
         reconstructed = self(images)
 
-        loss = self.loss_fn(reconstructed, images)
-
+        loss = self.loss_fn(reconstructed, targets)
         self.log("train_loss", loss, prog_bar=True, sync_dist=True)
-
         return loss
 
     def validation_step(self, batch, batch_idx):
         images = batch["image"]
+        targets = batch.get("target", images)
         reconstructed = self(images)
 
-        loss = self.loss_fn(reconstructed, images)
-
+        loss = self.loss_fn(reconstructed, targets)
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
-
         return loss
 
     def configure_optimizers(self):

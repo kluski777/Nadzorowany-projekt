@@ -25,7 +25,6 @@ model:
   learning_rate: 0.001
   loss_type: "mse" # Options: "ssim", "ms_ssim", "lpips", "mse", "mae", "huber"
   variant: "4k" # Options: "4k", "2k", "1k"
-
   # inpainter is using this path to train as well
   pretrained_checkpoint: "checkpoints/autoencoder-10k-CT-Residual-mse-latent8k-final-22301.ckpt"
 
@@ -44,13 +43,13 @@ experiment:
 
 inpainter:
   latent_channels: 128 # Should match model.latent_channels
-  hidden_channels: 256
-  num_blocks: 12
+  hidden_channels: 224
+  num_blocks: 9
   learning_rate: 0.0005
   reconstructed_loss_type: "charbonnier" # Maybe in the future perceptual loss if needed
   reconstructed_loss_weight: 0.3
   latent_loss_type: "charbonnier" # Options: "mse", "mae", "huber", "charbonnier"
-  batch_size: 64
+  batch_size: 32
   max_epochs: 200
 
 superresolution:

@@ -32,9 +32,8 @@ def inpaint():
         image = Image.open(file.stream)
         print(f"Received image: {file.filename} ({image.size})")
         
-        result_image, cluster_id, used_common = pipeline.inpaint(image)
-        inpainter_type = "common" if used_common else f"cluster {cluster_id}"
-        print(f"Inpainting complete! Used {inpainter_type} inpainter")
+        result_image, cluster_id = pipeline.inpaint(image)
+        print("Inpainting complete!")
         
         img_bytes = io.BytesIO()
         result_image.save(img_bytes, format="PNG")

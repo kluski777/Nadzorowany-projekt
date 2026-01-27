@@ -34,6 +34,8 @@ def train_inpainter(
         batch_size=inpainter_config.get("batch_size", 64),
         num_workers=config["data"].get("num_workers", 4),
     )
+
+    data_module.setup()
     
     model = ConvLatentInpainter(
         latent_channels=inpainter_config.get("latent_channels", config["model"]["latent_channels"]),
@@ -107,7 +109,7 @@ def train_inpainter(
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
         model.load_state_dict(checkpoint)
     
-    trainer.fit(model, data_module)
+    # trainer.fit(model, data_module)
     
     print("\nTraining completed!")
     print(f"Best model path: {checkpoint_callback.best_model_path}")
